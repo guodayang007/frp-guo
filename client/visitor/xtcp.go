@@ -212,7 +212,7 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 	}
 }
 
-// openTunnel will open a tunnel connection to the target server.
+// openTunnel will open a tunnel connection to the target server. openTunnel 将打开与目标服务器的隧道连接。
 func (sv *XTCPVisitor) openTunnel(ctx context.Context) (conn net.Conn, err error) {
 	xl := xlog.FromContextSafe(sv.ctx)
 	ticker := time.NewTicker(500 * time.Millisecond)

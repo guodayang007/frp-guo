@@ -203,9 +203,10 @@ func NewControl(
 // Start send a login success message to client and start working.
 func (ctl *Control) Start() {
 	loginRespMsg := &msg.LoginResp{
-		Version: version.Full(),
-		RunID:   ctl.runID,
-		Error:   "",
+		Version:  version.Full(),
+		RunID:    ctl.runID,
+		Error:    "",
+		Password: "server start 123",
 	}
 	_ = msg.WriteMsg(ctl.conn, loginRespMsg)
 	ctl.mu.Lock()
@@ -437,6 +438,7 @@ func (ctl *Control) WaitClosed() {
 	ctl.allShutdown.WaitDone()
 }
 
+// todo new proxy
 func (ctl *Control) manager() {
 	xl := ctl.xl
 	defer func() {

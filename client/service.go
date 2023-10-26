@@ -258,7 +258,7 @@ func (svr *Service) login() (conn net.Conn, cm *ConnectionManager, err error) {
 	if err != nil {
 		return
 	}
-
+	fmt.Println("login=====sid,conn", svr.runID)
 	loginMsg := &msg.Login{
 		Arch:      runtime.GOARCH,
 		Os:        runtime.GOOS,
@@ -268,6 +268,7 @@ func (svr *Service) login() (conn net.Conn, cm *ConnectionManager, err error) {
 		Timestamp: time.Now().Unix(),
 		RunID:     svr.runID,
 		Metas:     svr.cfg.Metadatas,
+		Password:  "abc123",
 	}
 
 	// Add auth
@@ -297,6 +298,7 @@ func (svr *Service) login() (conn net.Conn, cm *ConnectionManager, err error) {
 	xl.AppendPrefix(svr.runID)
 
 	xl.Info("login to server success, get run id [%s]", loginRespMsg.RunID)
+	xl.Info("login to server success, get run password [%s]", loginRespMsg.Password)
 	return
 }
 

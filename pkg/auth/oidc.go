@@ -112,11 +112,15 @@ func NewOidcAuthVerifier(additionalAuthScopes []v1.AuthScope, cfg v1.AuthOIDCSer
 }
 
 func (auth *OidcAuthConsumer) VerifyLogin(loginMsg *msg.Login) (err error) {
+
+	fmt.Println("oidc VerifyLogin start")
 	token, err := auth.verifier.Verify(context.Background(), loginMsg.PrivilegeKey)
 	if err != nil {
 		return fmt.Errorf("invalid OIDC token in login: %v", err)
 	}
 	auth.subjectFromLogin = token.Subject
+	fmt.Println("oidc VerifyLogin end", token.Subject)
+
 	return nil
 }
 

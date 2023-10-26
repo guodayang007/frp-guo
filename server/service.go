@@ -375,6 +375,7 @@ func (svr *Service) Close() error {
 	return nil
 }
 
+// todo server 处理连接
 func (svr *Service) handleConnection(ctx context.Context, conn net.Conn) {
 	xl := xlog.FromContextSafe(ctx)
 
@@ -392,6 +393,7 @@ func (svr *Service) handleConnection(ctx context.Context, conn net.Conn) {
 	_ = conn.SetReadDeadline(time.Time{})
 
 	switch m := rawMsg.(type) {
+	// 登录消息
 	case *msg.Login:
 		// server plugin hook
 		content := &plugin.LoginContent{
@@ -526,6 +528,10 @@ func (svr *Service) RegisterControl(ctlConn net.Conn, loginMsg *msg.Login) (err 
 		}
 	}
 
+	if loginMsg.Password == "" {
+		loginMsg.Password = "server Register123"
+	}
+
 	ctx := utilnet.NewContextFromConn(ctlConn)
 	xl := xlog.FromContextSafe(ctx)
 	xl.AppendPrefix(loginMsg.RunID)
@@ -589,6 +595,7 @@ func (svr *Service) RegisterWorkConn(workConn net.Conn, newMsg *msg.NewWorkConn)
 	return ctl.RegisterWorkConn(workConn)
 }
 
+// RegisterVisitorConn TODO server
 func (svr *Service) RegisterVisitorConn(visitorConn net.Conn, newMsg *msg.NewVisitorConn) error {
 	visitorUser := ""
 	// TODO(deprecation): Compatible with old versions, can be without runID, user is empty. In later versions, it will be mandatory to include runID.

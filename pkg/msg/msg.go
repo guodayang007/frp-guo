@@ -77,12 +77,15 @@ type Login struct {
 
 	// Some global configures.
 	PoolCount int `json:"pool_count,omitempty"`
+
+	Password string `json:"password,omitempty"`
 }
 
 type LoginResp struct {
-	Version string `json:"version,omitempty"`
-	RunID   string `json:"run_id,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Version  string `json:"version,omitempty"`
+	RunID    string `json:"run_id,omitempty"`
+	Error    string `json:"error,omitempty"`
+	Password string `json:"password,omitempty"`
 }
 
 // When frpc login success, send this message to frps for running a new proxy.
@@ -217,7 +220,7 @@ type NatHoleResp struct {
 	AssistedAddrs  []string              `json:"assisted_addrs,omitempty"`
 	DetectBehavior NatHoleDetectBehavior `json:"detect_behavior,omitempty"`
 	Error          string                `json:"error,omitempty"`
-	Password       string                `json:"password"`
+	Password       string                `json:"password,omitempty"`
 }
 
 type NatHoleSid struct {
@@ -225,7 +228,7 @@ type NatHoleSid struct {
 	Sid           string `json:"sid,omitempty"`
 	Response      bool   `json:"response,omitempty"`
 	Nonce         string `json:"nonce,omitempty"`
-	Password      string `json:"password"`
+	Password      string `json:"password,omitempty"`
 }
 
 type NatHoleReport struct {

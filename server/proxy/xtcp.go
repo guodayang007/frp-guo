@@ -73,7 +73,8 @@ func (pxy *XTCPProxy) Run() (remoteAddr string, err error) {
 					continue
 				}
 				m := &msg.NatHoleSid{
-					Sid: sid,
+					Sid:      sid,
+					Password: "server123123",
 				}
 				errRet = msg.WriteMsg(workConn, m)
 				if errRet != nil {

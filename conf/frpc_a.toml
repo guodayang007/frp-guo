@@ -1,0 +1,9 @@
+serverAddr = "121.43.149.18"
+serverPort = 7000
+
+[[proxies]]
+name = "p2p_ssh"
+type = "xtcp"
+secretKey = "abcdefg"
+localIP = "127.0.0.1"
+localPort = 22
