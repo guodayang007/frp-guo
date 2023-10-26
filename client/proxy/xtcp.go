@@ -15,6 +15,7 @@
 package proxy
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"reflect"
@@ -54,20 +55,28 @@ func NewXTCPProxy(baseProxy *BaseProxy, cfg v1.ProxyConfigurer) Proxy {
 func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkConn) {
 	xl := pxy.xl
 	defer conn.Close()
-	var natHoleSidMsg msg.NatHoleSid
+	var natHoleSidMsg msg.NatHoleSid //这里就是读数据
 	err := msg.ReadMsgInto(conn, &natHoleSidMsg)
 	if err != nil {
-		xl.Error("xtcp read from workConn error: %v", err)
+		xl.Error("【visitor】xtcp read from workConn error: %v", err)
 		return
 	}
 
-	xl.Trace("nathole prepare start")
+	xl.Trace("【visitor】nathole prepare start")
 	prepareResult, err := nathole.Prepare([]string{pxy.clientCfg.NatHoleSTUNServer})
 	if err != nil {
-		xl.Warn("nathole prepare error: %v", err)
+		xl.Warn("nathole prepare error 1: %v", err)
 		return
 	}
-	xl.Info("nathole prepare success, nat type: %s, behavior: %s, addresses: %v, assistedAddresses: %v",
+	//这里做逻辑 TODO
+	//看看怎么接数据。
+	fmt.Println("fangfang的密码：", natHoleSidMsg.Password)
+
+	//我们不用那么复杂 这里就可以做 验证签名 就看怎么得到数据
+
+	//不用那么复杂 现在先 随便发 123 看我能不能接  如果我能接 那么我这里可以改成 接受签名数据。？ 解析签名者  是否是我run这个程序配置的钱包  就能决定他们是否能连接。
+
+	xl.Info("【visitor】 nathole prepare success, nat type: %s, behavior: %s, addresses: %v, assistedAddresses: %v",
 		prepareResult.NatType, prepareResult.Behavior, prepareResult.Addrs, prepareResult.AssistedAddrs)
 	defer prepareResult.ListenConn.Close()
 
@@ -81,10 +90,10 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		AssistedAddrs: prepareResult.AssistedAddrs,
 	}
 
-	xl.Trace("nathole exchange info start")
+	xl.Trace("【visitor】nathole exchange info start")
 	natHoleRespMsg, err := nathole.ExchangeInfo(pxy.ctx, pxy.msgTransporter, transactionID, natHoleClientMsg, 5*time.Second)
 	if err != nil {
-		xl.Warn("nathole exchange info error: %v", err)
+		xl.Warn("【visitor】nathole exchange info error: %v", err)
 		return
 	}
 
@@ -96,7 +105,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 	newListenConn, raddr, err := nathole.MakeHole(pxy.ctx, listenConn, natHoleRespMsg, []byte(pxy.cfg.Secretkey))
 	if err != nil {
 		listenConn.Close()
-		xl.Warn("make hole error: %v", err)
+		xl.Warn("make hole error 2: %v", err)
 		_ = pxy.msgTransporter.Send(&msg.NatHoleReport{
 			Sid:     natHoleRespMsg.Sid,
 			Success: false,
@@ -104,7 +113,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		return
 	}
 	listenConn = newListenConn
-	xl.Info("establishing nat hole connection successful, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
+	xl.Info("【visitor】establishing nat hole connection successful, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
 
 	_ = pxy.msgTransporter.Send(&msg.NatHoleReport{
 		Sid:     natHoleRespMsg.Sid,

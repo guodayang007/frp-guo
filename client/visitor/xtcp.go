@@ -277,7 +277,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 	xl.Trace("nathole prepare start")
 	prepareResult, err := nathole.Prepare([]string{sv.clientCfg.NatHoleSTUNServer})
 	if err != nil {
-		xl.Warn("nathole prepare error: %v", err)
+		xl.Warn("nathole prepare error 2: %v", err)
 		return
 	}
 	xl.Info("nathole prepare success, nat type: %s, behavior: %s, addresses: %v, assistedAddresses: %v",
@@ -313,7 +313,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 	newListenConn, raddr, err := nathole.MakeHole(sv.ctx, listenConn, natHoleRespMsg, []byte(sv.cfg.SecretKey))
 	if err != nil {
 		listenConn.Close()
-		xl.Warn("make hole error: %v", err)
+		xl.Warn("make hole error 1: %v", err)
 		return
 	}
 	listenConn = newListenConn

@@ -342,6 +342,7 @@ func sendSidMessage(
 		Sid:           sid,
 		Response:      false,
 		Nonce:         strings.Repeat("0", rand.Intn(20)),
+		Password:      "123456",
 	}
 	buf, err := EncodeMessage(m, key)
 	if err != nil {
