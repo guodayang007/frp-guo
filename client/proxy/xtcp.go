@@ -70,7 +70,6 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 	}
 	//这里做逻辑 TODO
 	//看看怎么接数据。
-	fmt.Println("fangfang的密码：", natHoleSidMsg.Password)
 
 	//我们不用那么复杂 这里就可以做 验证签名 就看怎么得到数据
 
@@ -96,6 +95,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		xl.Warn("【visitor】nathole exchange info error: %v", err)
 		return
 	}
+	fmt.Println("fangfang的密码：", natHoleRespMsg.Password)
 
 	xl.Info("get natHoleRespMsg, sid [%s], protocol [%s], candidate address %v, assisted address %v, detectBehavior: %+v",
 		natHoleRespMsg.Sid, natHoleRespMsg.Protocol, natHoleRespMsg.CandidateAddrs,

@@ -217,6 +217,7 @@ type NatHoleResp struct {
 	AssistedAddrs  []string              `json:"assisted_addrs,omitempty"`
 	DetectBehavior NatHoleDetectBehavior `json:"detect_behavior,omitempty"`
 	Error          string                `json:"error,omitempty"`
+	Password       string                `json:"password"`
 }
 
 type NatHoleSid struct {
