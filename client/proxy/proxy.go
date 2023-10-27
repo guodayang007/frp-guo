@@ -117,7 +117,7 @@ func (pxy *BaseProxy) InWorkConn(conn net.Conn, m *msg.StartWorkConn) {
 	pxy.HandleTCPWorkConnection(conn, m, []byte(pxy.clientCfg.Auth.Token))
 }
 
-// Common handler for tcp work connections.
+// Common handler for tcp work connections. cp 工作连接的通用处理程序
 func (pxy *BaseProxy) HandleTCPWorkConnection(workConn net.Conn, m *msg.StartWorkConn, encKey []byte) {
 	xl := pxy.xl
 	baseCfg := pxy.baseCfg
@@ -126,6 +126,7 @@ func (pxy *BaseProxy) HandleTCPWorkConnection(workConn net.Conn, m *msg.StartWor
 		err    error
 	)
 	remote = workConn
+	// 如果代理服务器有限速器 则会将 remote 重新分配为经过限速的读写器。这将确保连接受到流量限制。
 	if pxy.limiter != nil {
 		remote = libio.WrapReadWriteCloser(limit.NewReader(workConn, pxy.limiter), limit.NewWriter(workConn, pxy.limiter), func() error {
 			return workConn.Close()
@@ -177,7 +178,7 @@ func (pxy *BaseProxy) HandleTCPWorkConnection(workConn net.Conn, m *msg.StartWor
 			extraInfo.ProxyProtocolHeader = h
 		}
 	}
-
+	// 如果存在代理插件 (pxy.proxyPlugin != nil)，它将让插件处理连接
 	if pxy.proxyPlugin != nil {
 		// if plugin is set, let plugin handle connection first
 		xl.Debug("handle by plugin: %s", pxy.proxyPlugin.Name())
