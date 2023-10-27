@@ -91,6 +91,7 @@ func PreCheck(
 		TransactionID: transactionID,
 		ProxyName:     proxyName,
 		PreCheck:      true,
+		Password:      "1234567",
 	}, transactionID, msg.TypeNameNatHoleResp)
 	if err != nil {
 		return fmt.Errorf("get natHoleRespMsg error: %v", err)

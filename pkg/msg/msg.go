@@ -186,6 +186,7 @@ type NatHoleVisitor struct {
 	Timestamp     int64    `json:"timestamp,omitempty"`
 	MappedAddrs   []string `json:"mapped_addrs,omitempty"`
 	AssistedAddrs []string `json:"assisted_addrs,omitempty"`
+	Password      string   `json:"password"`
 }
 
 type NatHoleClient struct {
