@@ -58,11 +58,11 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 	var natHoleSidMsg msg.NatHoleSid //这里就是读数据
 	err := msg.ReadMsgInto(conn, &natHoleSidMsg)
 	if err != nil {
-		xl.Error("【visitor】xtcp read from workConn error: %v", err)
+		xl.Error("【proxy】xtcp read from workConn error: %v", err)
 		return
 	}
 
-	xl.Trace("【visitor】nathole prepare start")
+	xl.Trace("【proxy】nathole prepare start")
 	prepareResult, err := nathole.Prepare([]string{pxy.clientCfg.NatHoleSTUNServer})
 	if err != nil {
 		xl.Warn("nathole prepare error 1: %v", err)
@@ -75,7 +75,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 
 	//不用那么复杂 现在先 随便发 123 看我能不能接  如果我能接 那么我这里可以改成 接受签名数据。？ 解析签名者  是否是我run这个程序配置的钱包  就能决定他们是否能连接。
 
-	xl.Info("【visitor】 nathole prepare success, nat type: %s, behavior: %s, addresses: %v, assistedAddresses: %v",
+	xl.Info("【proxy】 nathole prepare success, nat type: %s, behavior: %s, addresses: %v, assistedAddresses: %v",
 		prepareResult.NatType, prepareResult.Behavior, prepareResult.Addrs, prepareResult.AssistedAddrs)
 	defer prepareResult.ListenConn.Close()
 
@@ -89,13 +89,13 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		AssistedAddrs: prepareResult.AssistedAddrs,
 	}
 
-	xl.Trace("【visitor】nathole exchange info start")
+	xl.Trace("【proxy】nathole exchange info start")
 	natHoleRespMsg, err := nathole.ExchangeInfo(pxy.ctx, pxy.msgTransporter, transactionID, natHoleClientMsg, 5*time.Second)
 	if err != nil {
-		xl.Warn("【visitor】nathole exchange info error: %v", err)
+		xl.Warn("【proxy】nathole exchange info error: %v", err)
 		return
 	}
-	xl.Info("【visitor】nathole exchange info start fangfang的密码 [%s] ", natHoleRespMsg.Password)
+	xl.Info("【proxy】nathole exchange info start fangfang的密码 [%s] ", natHoleRespMsg.Password)
 	if natHoleRespMsg.Password == "" {
 		natHoleRespMsg.Password = "client fangfang InWorkConn"
 	}
@@ -117,7 +117,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		return
 	}
 	listenConn = newListenConn
-	xl.Info("【visitor】establishing nat hole connection successful, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
+	xl.Info("【proxy】establishing nat hole connection successful, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
 
 	_ = pxy.msgTransporter.Send(&msg.NatHoleReport{
 		Sid:     natHoleRespMsg.Sid,

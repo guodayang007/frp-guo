@@ -267,6 +267,12 @@ type Message struct {
 	Sid     string `json:"sid,omitempty"`
 }
 
+// P2pMessage 代表要传输的消息
+type P2pMessage struct {
+	Text    string
+	Content string `json:"content,omitempty"`
+}
+
 // openTunnel will open a tunnel connection to the target server. openTunnel 将打开与目标服务器的隧道连接。
 func (sv *XTCPVisitor) openTunnel(ctx context.Context) (conn net.Conn, err error) {
 	xl := xlog.FromContextSafe(sv.ctx)
@@ -323,19 +329,19 @@ func (sv *XTCPVisitor) getTunnelConn() (net.Conn, error) {
 // 4. Create a tunnel session using an underlying UDP connection.
 func (sv *XTCPVisitor) makeNatHole() {
 	xl := xlog.FromContextSafe(sv.ctx)
-	xl.Trace("makeNatHole start")
+	xl.Trace("[visitor] makeNatHole start")
 	if err := nathole.PreCheck(sv.ctx, sv.helper.MsgTransporter(), sv.cfg.ServerName, 5*time.Second); err != nil {
-		xl.Warn("nathole precheck error: %v", err)
+		xl.Warn("[visitor] nathole precheck error: %v", err)
 		return
 	}
 
-	xl.Trace("nathole prepare start")
+	xl.Trace("[visitor] nathole prepare start")
 	prepareResult, err := nathole.Prepare([]string{sv.clientCfg.NatHoleSTUNServer})
 	if err != nil {
-		xl.Warn("nathole prepare error 2: %v", err)
+		xl.Warn("[visitor] nathole prepare error 2: %v", err)
 		return
 	}
-	xl.Info("nathole prepare success, nat type: %s, behavior: %s, addresses: %v, assistedAddresses: %v",
+	xl.Info("[visitor] nathole prepare success, nat type: %s, behavior: %s, addresses: %v, assistedAddresses: %v",
 		prepareResult.NatType, prepareResult.Behavior, prepareResult.Addrs, prepareResult.AssistedAddrs)
 
 	listenConn := prepareResult.ListenConn
@@ -353,7 +359,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 		AssistedAddrs: prepareResult.AssistedAddrs,
 	}
 
-	xl.Trace("nathole exchange info start")
+	xl.Trace("[visitor] nathole exchange info start")
 	natHoleRespMsg, err := nathole.ExchangeInfo(sv.ctx, sv.helper.MsgTransporter(), transactionID, natHoleVisitorMsg, 5*time.Second)
 	if err != nil {
 		listenConn.Close()
@@ -361,7 +367,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 		return
 	}
 
-	xl.Info("get natHoleRespMsg, sid [%s], protocol [%s], candidate address %v, assisted address %v, detectBehavior: %+v",
+	xl.Info("[visitor]  get natHoleRespMsg, sid [%s], protocol [%s], candidate address %v, assisted address %v, detectBehavior: %+v",
 		natHoleRespMsg.Sid, natHoleRespMsg.Protocol, natHoleRespMsg.CandidateAddrs,
 		natHoleRespMsg.AssistedAddrs, natHoleRespMsg.DetectBehavior)
 
@@ -369,17 +375,51 @@ func (sv *XTCPVisitor) makeNatHole() {
 	newListenConn, raddr, err := nathole.MakeHole(sv.ctx, listenConn, natHoleRespMsg, []byte(sv.cfg.SecretKey))
 	if err != nil {
 		listenConn.Close()
-		xl.Warn("make hole error 1: %v", err)
+		xl.Warn("[visitor] make hole error 1: %v", err)
 		return
 	}
 	listenConn = newListenConn
-	xl.Info("establishing nat hole connection successful, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
+	xl.Info("[visitor] establishing nat hole connection successful, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
 
 	if err := sv.session.Init(listenConn, raddr); err != nil {
 		listenConn.Close()
-		xl.Warn("init tunnel session error: %v", err)
+		xl.Warn("[visitor] init tunnel session error: %v", err)
 		return
 	}
+	// 创建消息
+	message := &P2pMessage{
+		Text:    "Hello, Frp P2P!",
+		Content: "client visitor fang",
+	}
+
+	// 发送消息
+	if err := sendMessage(listenConn, message); err != nil {
+		xl.Error("Failed to send message: %v", err)
+	}
+
+	// 接收消息
+	receivedMessage, err := receiveMessage(listenConn)
+	if err != nil {
+		xl.Error("Failed to receive message: %v", err)
+	} else {
+		xl.Info("Received message: %s", receivedMessage.Text)
+	}
+}
+
+// sendMessage 用于向对端发送消息
+func sendMessage(conn io.ReadWriteCloser, msg *P2pMessage) error {
+	enc := json.NewEncoder(conn)
+	return enc.Encode(msg)
+}
+
+// receiveMessage 用于从对端接收消息
+func receiveMessage(conn io.ReadWriteCloser) (*P2pMessage, error) {
+	dec := json.NewDecoder(conn)
+	var msg P2pMessage
+	if err := dec.Decode(&msg); err != nil {
+		return nil, err
+	}
+	return &msg, nil
 }
 
 type TunnelSession interface {
