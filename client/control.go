@@ -125,6 +125,7 @@ func (ctl *Control) Run() {
 	go ctl.vm.Run()
 }
 
+// 处理请求工作连接
 func (ctl *Control) HandleReqWorkConn(_ *msg.ReqWorkConn) {
 	xl := ctl.xl
 	workConn, err := ctl.connectServer()

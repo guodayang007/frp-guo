@@ -16,6 +16,7 @@ package visitor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -155,6 +156,8 @@ func (sv *XTCPVisitor) keepTunnelOpenWorker() {
 	}
 }
 
+// 在这里处理已建立的连接上的数据传输逻辑
+// 例如，读取数据，解析消息，处理请求，发送响应等
 func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 	xl := xlog.FromContextSafe(sv.ctx)
 	isConnTrasfered := false
@@ -210,6 +213,58 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 	if len(errs) > 0 {
 		xl.Trace("join connections errors: %v", errs)
 	}
+
+	//	--------------------------------------
+	// 创建一个通道用于接收消息
+	msgChan := make(chan string)
+
+	// 启动一个协程用于接收消息
+	go func() {
+		for {
+			// 从连接中读取消息
+			buffer := make([]byte, 1024)
+			n, err := muxConnRWCloser.Read(buffer)
+			if err != nil {
+				// 处理读取错误，例如连接关闭
+				break
+			}
+
+			// 将读取到的数据转换为字符串消息
+			msg := string(buffer[:n])
+			xl.Info("接收到消息：%v", msg)
+
+			// 将消息发送到通道
+			msgChan <- msg
+		}
+	}()
+
+	// 启动一个协程用于发送消息
+	go func() {
+		for {
+			// 从消息通道接收消息
+			msg := <-msgChan
+			message := Message{
+				Content: msg,
+				Sid:     "11",
+			}
+			// 处理需要发送的消息内容
+			messageByte, _ := json.Marshal(message)
+			// ...
+
+			// 将消息内容发送到连接
+			_, err := muxConnRWCloser.Write([]byte(messageByte))
+			if err != nil {
+				// 处理写入错误
+				break
+			}
+		}
+	}()
+
+}
+
+type Message struct {
+	Content string `json:"content,omitempty"`
+	Sid     string `json:"sid,omitempty"`
 }
 
 // openTunnel will open a tunnel connection to the target server. openTunnel 将打开与目标服务器的隧道连接。

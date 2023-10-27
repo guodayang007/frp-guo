@@ -401,6 +401,8 @@ func (svr *Service) handleConnection(ctx context.Context, conn net.Conn) {
 			ClientAddress: conn.RemoteAddr().String(),
 		}
 		retContent, err := svr.pluginManager.Login(content)
+
+		log.Info("login - [%s] -[%s]", m.RunID, m.Password)
 		if err == nil {
 			m = &retContent.Login
 			err = svr.RegisterControl(conn, m)
@@ -454,7 +456,7 @@ func (svr *Service) HandleListener(l net.Listener) {
 
 		c = utilnet.NewContextConn(xlog.NewContext(ctx, xl), c)
 
-		log.Trace("start check TLS connection...")
+		log.Info("start check TLS connection...")
 		originConn := c
 		var isTLS, custom bool
 		c, isTLS, custom, err = utilnet.CheckAndEnableTLSServerConnWithTimeout(c, svr.tlsConfig, svr.cfg.Transport.TLS.Force, connReadTimeout)
@@ -463,7 +465,7 @@ func (svr *Service) HandleListener(l net.Listener) {
 			originConn.Close()
 			continue
 		}
-		log.Trace("check TLS connection success, isTLS: %v custom: %v", isTLS, custom)
+		log.Info("check TLS connection success, isTLS: %v custom: %v", isTLS, custom)
 
 		// Start a new goroutine to handle connection.
 		go func(ctx context.Context, frpConn net.Conn) {
@@ -536,8 +538,8 @@ func (svr *Service) RegisterControl(ctlConn net.Conn, loginMsg *msg.Login) (err 
 	xl := xlog.FromContextSafe(ctx)
 	xl.AppendPrefix(loginMsg.RunID)
 	ctx = xlog.NewContext(ctx, xl)
-	xl.Info("client login info: ip [%s] version [%s] hostname [%s] os [%s] arch [%s]",
-		ctlConn.RemoteAddr().String(), loginMsg.Version, loginMsg.Hostname, loginMsg.Os, loginMsg.Arch)
+	xl.Info("server client login info: ip [%s] version [%s] hostname [%s] os [%s] arch [%s] password[%s]",
+		ctlConn.RemoteAddr().String(), loginMsg.Version, loginMsg.Hostname, loginMsg.Os, loginMsg.Arch, loginMsg.Password)
 
 	// Check auth.
 	if err = svr.authVerifier.VerifyLogin(loginMsg); err != nil {

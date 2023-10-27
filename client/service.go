@@ -268,7 +268,7 @@ func (svr *Service) login() (conn net.Conn, cm *ConnectionManager, err error) {
 		Timestamp: time.Now().Unix(),
 		RunID:     svr.runID,
 		Metas:     svr.cfg.Metadatas,
-		Password:  "abc123",
+		Password:  "client abc123",
 	}
 
 	// Add auth
@@ -298,7 +298,7 @@ func (svr *Service) login() (conn net.Conn, cm *ConnectionManager, err error) {
 	xl.AppendPrefix(svr.runID)
 
 	xl.Info("login to server success, get run id [%s]", loginRespMsg.RunID)
-	xl.Info("login to server success, get run password [%s]", loginRespMsg.Password)
+	xl.Info("client login to server success, get run password [%s]", loginRespMsg.Password)
 	return
 }
 

@@ -15,7 +15,6 @@
 package proxy
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"reflect"
@@ -52,6 +51,7 @@ func NewXTCPProxy(baseProxy *BaseProxy, cfg v1.ProxyConfigurer) Proxy {
 	}
 }
 
+// InWorkConn 处理入站连接
 func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkConn) {
 	xl := pxy.xl
 	defer conn.Close()
@@ -95,7 +95,10 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		xl.Warn("【visitor】nathole exchange info error: %v", err)
 		return
 	}
-	fmt.Println("fangfang的密码：", natHoleRespMsg.Password)
+	xl.Info("【visitor】nathole exchange info start fangfang的密码 [%s] ", natHoleRespMsg.Password)
+	if natHoleRespMsg.Password == "" {
+		natHoleRespMsg.Password = "client fangfang InWorkConn"
+	}
 
 	xl.Info("get natHoleRespMsg, sid [%s], protocol [%s], candidate address %v, assisted address %v, detectBehavior: %+v",
 		natHoleRespMsg.Sid, natHoleRespMsg.Protocol, natHoleRespMsg.CandidateAddrs,
@@ -109,6 +112,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		_ = pxy.msgTransporter.Send(&msg.NatHoleReport{
 			Sid:     natHoleRespMsg.Sid,
 			Success: false,
+			Content: "client InWorkConn false fang",
 		})
 		return
 	}
@@ -118,6 +122,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 	_ = pxy.msgTransporter.Send(&msg.NatHoleReport{
 		Sid:     natHoleRespMsg.Sid,
 		Success: true,
+		Content: "client InWorkConn true fang",
 	})
 
 	if natHoleRespMsg.Protocol == "kcp" {

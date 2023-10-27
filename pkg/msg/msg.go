@@ -235,4 +235,5 @@ type NatHoleSid struct {
 type NatHoleReport struct {
 	Sid     string `json:"sid,omitempty"`
 	Success bool   `json:"success,omitempty"`
+	Content string `json:"content,omitempty"`
 }
