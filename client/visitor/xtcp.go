@@ -384,6 +384,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 		xl.Warn("[visitor] init tunnel session error: %v", err)
 		return
 	}
+
 	// 打洞连接成功后，可以开始监听
 	go sv.handleIncomingMessages(listenConn) // 假设有一个名为 handleIncomingMessages 的函数用于监听消息
 
@@ -407,7 +408,7 @@ func (sv *XTCPVisitor) handleIncomingMessages(conn *net.UDPConn) {
 	for {
 		n, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
-			xl.Error("Failed to read data: %v", err)
+			xl.Error("[visitor] Failed to read data: %v", err)
 			return
 		}
 
@@ -422,12 +423,17 @@ func (sv *XTCPVisitor) handleIncomingMessages(conn *net.UDPConn) {
 				messageData := receivedData[:idx]
 				receivedData = receivedData[idx+1:]
 
-				var receivedMessage P2pMessage
-				if err := json.Unmarshal(messageData, &receivedMessage); err != nil {
-					xl.Error("[visitor] Failed to unmarshal received data: %v", err)
+				// 检查数据有效性
+				if !json.Valid(messageData) {
+					xl.Error("[visitor] Invalid JSON data: %s", messageData)
 				} else {
-					xl.Info("Received message: %s", receivedMessage.Text)
-					// 处理接收到的消息，例如打印或执行其他操作
+					var receivedMessage P2pMessage
+					if err := json.Unmarshal(messageData, &receivedMessage); err != nil {
+						xl.Error("[visitor] Failed to unmarshal received data: %v", err)
+					} else {
+						xl.Info("[visitor] Received message: %s", receivedMessage.Text)
+						// 处理接收到的消息，例如打印或执行其他操作
+					}
 				}
 			} else {
 				// 没有更多完整的消息，退出循环
