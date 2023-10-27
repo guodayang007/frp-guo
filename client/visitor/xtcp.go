@@ -342,13 +342,11 @@ func (sv *XTCPVisitor) makeNatHole() {
 	if err != nil {
 		xl.Error("[visitor] Failed to send message: %v", err)
 	}
-
-	xl.Info("[visitor] send message success")
-
 	// 发送消息
-	//if err := SendMessage(listenConn, raddr, message); err != nil {
-	//	xl.Error("Failed to send message: %v", err)
-	//}
+	if err := SendMessage(listenConn, raddr, message); err != nil {
+		xl.Error("Failed to send message: %v", err)
+	}
+	xl.Info("[visitor] send message success")
 
 }
 func (sv *XTCPVisitor) handleIncomingMessages(conn *net.UDPConn) {

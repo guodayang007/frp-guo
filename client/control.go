@@ -16,7 +16,6 @@ package client
 
 import (
 	"context"
-	"github.com/fatedier/frp/pkg/util/log"
 	"io"
 	"net"
 	"runtime/debug"
@@ -257,7 +256,7 @@ func (ctl *Control) writer() {
 		}
 
 		if err := msg.WriteMsg(encWriter, m); err != nil {
-			xl.Warn("write message to control connection error: %v", err)
+			xl.Warn("[client] write message to control connection error: %v", err)
 			return
 		}
 	}
@@ -328,15 +327,15 @@ func (ctl *Control) msgHandler() {
 			case *msg.P2pMessage:
 				// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
 
-				log.Info("[client ] P2pMessage - [%s] -[%s]", m.Content, m.Text)
+				xl.Info("[client ] P2pMessage - [%s] -[%s]", m.Content, m.Text)
 
 			case *msg.P2pMessageProxy:
 
-				log.Info("[proxy  client ] P2pMessageProxy - [%s] ", m.Content)
+				xl.Info("[proxy  client ] P2pMessageProxy - [%s] ", m.Content)
 
 			case *msg.P2pMessageVisitor:
 
-				log.Info("[visitor client ] P2pMessageVisitor - [%s] ", m.Content)
+				xl.Info("[visitor client ] P2pMessageVisitor - [%s] ", m.Content)
 			case *msg.Pong:
 				if m.Error != "" {
 					xl.Error("Pong contains error: %s", m.Error)
