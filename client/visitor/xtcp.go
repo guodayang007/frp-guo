@@ -15,6 +15,7 @@
 package visitor
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -249,7 +250,7 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 			}
 			var receivedMessage P2pMessage
 			if err := json.Unmarshal(buffer[:n], &receivedMessage); err != nil {
-				xl.Error("Failed to unmarshal received data: %v", err)
+				xl.Error("[visitor] Failed to unmarshal received data: %v", err)
 				return
 			}
 			xl.Debug("Received message: %s, Content: %s", receivedMessage.Text, receivedMessage.Content)
@@ -400,22 +401,39 @@ func (sv *XTCPVisitor) makeNatHole() {
 }
 func (sv *XTCPVisitor) handleIncomingMessages(conn *net.UDPConn) {
 	xl := xlog.FromContextSafe(sv.ctx)
+	buffer := make([]byte, 1024)
+	var receivedData []byte
+
 	for {
-		buffer := make([]byte, 1024)
 		n, _, err := conn.ReadFromUDP(buffer)
 		if err != nil {
 			xl.Error("Failed to read data: %v", err)
 			return
 		}
 
-		var receivedMessage P2pMessage
-		if err := json.Unmarshal(buffer[:n], &receivedMessage); err != nil {
-			xl.Error("Failed to unmarshal received data: %v", err)
-			return
-		}
+		// 将接收到的数据追加到已接收数据
+		receivedData = append(receivedData, buffer[:n]...)
 
-		xl.Info("Received message: %s", receivedMessage.Text)
-		// 处理接收到的消息，例如打印或执行其他操作
+		// 检查是否有完整消息
+		for {
+			// 查找消息分隔符，例如换行符
+			if idx := bytes.Index(receivedData, []byte{'\n'}); idx >= 0 {
+				// 提取一条完整的消息
+				messageData := receivedData[:idx]
+				receivedData = receivedData[idx+1:]
+
+				var receivedMessage P2pMessage
+				if err := json.Unmarshal(messageData, &receivedMessage); err != nil {
+					xl.Error("[visitor] Failed to unmarshal received data: %v", err)
+				} else {
+					xl.Info("Received message: %s", receivedMessage.Text)
+					// 处理接收到的消息，例如打印或执行其他操作
+				}
+			} else {
+				// 没有更多完整的消息，退出循环
+				break
+			}
+		}
 	}
 }
 

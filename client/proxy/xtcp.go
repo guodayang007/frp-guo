@@ -213,7 +213,7 @@ func (pxy *XTCPProxy) SendAndReceiveMessages(conn net.Conn) {
 
 		var receivedMessage visitor.P2pMessage
 		if err := json.Unmarshal(receivedData[:n], &receivedMessage); err != nil {
-			xl.Error("Failed to unmarshal received data: %v", err)
+			xl.Error("[proxy] Failed to unmarshal received data: %v", err)
 			return
 		}
 
