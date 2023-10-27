@@ -225,7 +225,7 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 				xl.Debug("User connection closed: %v", err)
 				return
 			}
-			message := P2pMessage{
+			message := msg.P2pMessage{
 				Text:    string(buffer[:n]),
 				Content: "Additional Content", // Modify or set your content as needed
 			}
@@ -248,7 +248,7 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 				xl.Debug("Tunnel connection closed: %v", err)
 				return
 			}
-			var receivedMessage P2pMessage
+			var receivedMessage msg.P2pMessage
 			if err := json.Unmarshal(buffer[:n], &receivedMessage); err != nil {
 				xl.Error("[visitor] Failed to unmarshal received data: %v", err)
 				return
@@ -258,17 +258,6 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 		}
 	}()
 
-}
-
-type Message struct {
-	Content string `json:"content,omitempty"`
-	Sid     string `json:"sid,omitempty"`
-}
-
-// P2pMessage 代表要传输的消息
-type P2pMessage struct {
-	Text    string
-	Content string `json:"content,omitempty"`
 }
 
 // openTunnel will open a tunnel connection to the target server. openTunnel 将打开与目标服务器的隧道连接。
@@ -389,7 +378,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 	go sv.handleIncomingMessages(listenConn) // 假设有一个名为 handleIncomingMessages 的函数用于监听消息
 
 	// 创建消息
-	message := &P2pMessage{
+	message := &msg.P2pMessage{
 		Text:    "Hello, Frp P2P!",
 		Content: "client visitor fang",
 	}
@@ -427,7 +416,7 @@ func (sv *XTCPVisitor) handleIncomingMessages(conn *net.UDPConn) {
 				if !json.Valid(messageData) {
 					xl.Error("[visitor] Invalid JSON data: %s", messageData)
 				} else {
-					var receivedMessage P2pMessage
+					var receivedMessage msg.P2pMessage
 					if err := json.Unmarshal(messageData, &receivedMessage); err != nil {
 						xl.Error("[visitor] Failed to unmarshal received data: %v", err)
 					} else {
@@ -444,7 +433,7 @@ func (sv *XTCPVisitor) handleIncomingMessages(conn *net.UDPConn) {
 }
 
 // SendMessage 用于向对端发送消息
-func SendMessage(conn *net.UDPConn, addr *net.UDPAddr, msg *P2pMessage) error {
+func SendMessage(conn *net.UDPConn, addr *net.UDPAddr, msg *msg.P2pMessage) error {
 	encodedMsg, err := json.Marshal(msg)
 	if err != nil {
 		return err
@@ -455,9 +444,9 @@ func SendMessage(conn *net.UDPConn, addr *net.UDPAddr, msg *P2pMessage) error {
 }
 
 // receiveMessage 用于从对端接收消息
-func receiveMessage(conn io.ReadWriteCloser) (*P2pMessage, error) {
+func receiveMessage(conn io.ReadWriteCloser) (*msg.P2pMessage, error) {
 	dec := json.NewDecoder(conn)
-	var msg P2pMessage
+	var msg msg.P2pMessage
 	if err := dec.Decode(&msg); err != nil {
 		return nil, err
 	}

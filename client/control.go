@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	"github.com/fatedier/frp/pkg/util/log"
 	"io"
 	"net"
 	"runtime/debug"
@@ -322,6 +323,19 @@ func (ctl *Control) msgHandler() {
 				ctl.HandleNewProxyResp(m)
 			case *msg.NatHoleResp:
 				ctl.HandleNatHoleResp(m)
+
+			case *msg.P2pMessage:
+				// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
+
+				log.Info("[client ] P2pMessage - [%s] -[%s]", m.Content, m.Text)
+
+			case *msg.P2pMessageProxy:
+
+				log.Info("[proxy  client ] P2pMessageProxy - [%s] ", m.Content)
+
+			case *msg.P2pMessageVisitor:
+
+				log.Info("[visitor client ] P2pMessageVisitor - [%s] ", m.Content)
 			case *msg.Pong:
 				if m.Error != "" {
 					xl.Error("Pong contains error: %s", m.Error)

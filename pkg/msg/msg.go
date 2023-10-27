@@ -237,3 +237,17 @@ type NatHoleReport struct {
 	Success bool   `json:"success,omitempty"`
 	Content string `json:"content,omitempty"`
 }
+
+// P2pMessage 代表要传输的消息
+type P2pMessage struct {
+	Text    string
+	Content string `json:"content,omitempty"`
+}
+
+type P2pMessageProxy struct {
+	Content string `json:"content,omitempty"`
+}
+
+type P2pMessageVisitor struct {
+	Content string `json:"content,omitempty"`
+}

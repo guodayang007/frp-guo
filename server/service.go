@@ -538,7 +538,7 @@ func (svr *Service) RegisterControl(ctlConn net.Conn, loginMsg *msg.Login) (err 
 	xl := xlog.FromContextSafe(ctx)
 	xl.AppendPrefix(loginMsg.RunID)
 	ctx = xlog.NewContext(ctx, xl)
-	xl.Info("server client login info: ip [%s] version [%s] hostname [%s] os [%s] arch [%s] password[%s]",
+	xl.Info("server client login info 1: ip [%s] version [%s] hostname [%s] os [%s] arch [%s] password[%s]",
 		ctlConn.RemoteAddr().String(), loginMsg.Version, loginMsg.Hostname, loginMsg.Os, loginMsg.Arch, loginMsg.Password)
 
 	// Check auth.
