@@ -116,10 +116,13 @@ func NewControl(
 }
 
 func (ctl *Control) Run() {
+	xl := ctl.xl
 	go ctl.worker()
 
 	// start all proxies
 	ctl.pm.Reload(ctl.pxyCfgs)
+
+	xl.Info("start control")
 
 	// start all visitors
 	go ctl.vm.Run()
@@ -318,10 +321,13 @@ func (ctl *Control) msgHandler() {
 
 			switch m := rawMsg.(type) {
 			case *msg.ReqWorkConn:
+				xl.Info("[client ]  ReqWorkConn 111 ")
 				go ctl.HandleReqWorkConn(m)
 			case *msg.NewProxyResp:
+				xl.Info("[client ]  NewProxyResp 111 ")
 				ctl.HandleNewProxyResp(m)
 			case *msg.NatHoleResp:
+				xl.Info("[client ]  NatHoleResp 111 ")
 				ctl.HandleNatHoleResp(m)
 
 			case *msg.P2pMessage:

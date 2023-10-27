@@ -15,11 +15,11 @@
 package visitor
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fatedier/frp/pkg/util/log"
 	"io"
 	"net"
 	"strconv"
@@ -214,6 +214,26 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 	if len(errs) > 0 {
 		xl.Trace("join connections errors: %v", errs)
 	}
+
+	// 打洞连接成功后，可以开始监听
+	go sv.listenForMessages(userConn) // 假设有一个名为 handleIncomingMessages 的函数用于监听消息
+
+	// 创建消息
+	message := &msg.P2pMessage{
+		Text:    "Hello, Frp P2P!",
+		Content: "client visitor fang",
+	}
+	err = sv.BaseVisitor.helper.MsgTransporter().Send(message)
+	if err != nil {
+		xl.Error("[visitor] Failed to send message: %v", err)
+	}
+	// 发送消息
+	if err := sv.sendMessage(userConn, message); err != nil {
+		xl.Error("【visitor】xtcp send message error: %v", err)
+		return
+	}
+
+	xl.Info("[visitor] send message success")
 }
 
 // openTunnel will open a tunnel connection to the target server. openTunnel 将打开与目标服务器的隧道连接。
@@ -330,66 +350,45 @@ func (sv *XTCPVisitor) makeNatHole() {
 		return
 	}
 
-	// 打洞连接成功后，可以开始监听
-	//go sv.handleIncomingMessages(listenConn) // 假设有一个名为 handleIncomingMessages 的函数用于监听消息
-
-	// 创建消息
-	message := &msg.P2pMessage{
-		Text:    "Hello, Frp P2P!",
-		Content: "client visitor fang",
-	}
-	err = sv.BaseVisitor.helper.MsgTransporter().Send(message)
+}
+func (sv *XTCPVisitor) sendMessage(conn net.Conn, message *msg.P2pMessage) error {
+	xl := xlog.FromContextSafe(sv.ctx)
+	err := msg.WriteMsg(conn, message)
 	if err != nil {
 		xl.Error("[visitor] Failed to send message: %v", err)
 	}
-	// 发送消息
-	if err := SendMessage(listenConn, raddr, message); err != nil {
-		xl.Error("Failed to send message: %v", err)
-	}
-	xl.Info("[visitor] send message success")
-
+	return err
 }
-func (sv *XTCPVisitor) handleIncomingMessages(conn *net.UDPConn) {
+func (sv *XTCPVisitor) listenForMessages(conn net.Conn) {
 	xl := xlog.FromContextSafe(sv.ctx)
-	buffer := make([]byte, 1024)
-	var receivedData []byte
 
-	for {
-		n, _, err := conn.ReadFromUDP(buffer)
-		if err != nil {
-			xl.Error("[visitor] Failed to read data: %v", err)
-			return
-		}
-
-		// 将接收到的数据追加到已接收数据
-		receivedData = append(receivedData, buffer[:n]...)
-
-		// 检查是否有完整消息
-		for {
-			// 查找消息分隔符，例如换行符
-			if idx := bytes.Index(receivedData, []byte{'\n'}); idx >= 0 {
-				// 提取一条完整的消息
-				messageData := receivedData[:idx]
-				receivedData = receivedData[idx+1:]
-
-				// 检查数据有效性
-				if !json.Valid(messageData) {
-					xl.Error("[visitor] Invalid JSON data: %s", messageData)
-				} else {
-					var receivedMessage msg.P2pMessage
-					if err := json.Unmarshal(messageData, &receivedMessage); err != nil {
-						xl.Error("[visitor] Failed to unmarshal received data: %v", err)
-					} else {
-						xl.Info("[visitor] Received message: %s", receivedMessage.Text)
-						// 处理接收到的消息，例如打印或执行其他操作
-					}
-				}
-			} else {
-				// 没有更多完整的消息，退出循环
-				break
-			}
-		}
+	var (
+		rawMsg msg.Message
+		err    error
+	)
+	if rawMsg, err = msg.ReadMsg(conn); err != nil {
+		log.Trace("Failed to read message: %v", err)
+		conn.Close()
+		return
 	}
+	switch m := rawMsg.(type) {
+	case *msg.P2pMessage:
+		// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
+
+		xl.Info("[visitor client ] P2pMessage - [%s] -[%s]", m.Content, m.Text)
+
+	case *msg.P2pMessageProxy:
+
+		xl.Info("[visitor  client ] P2pMessageProxy - [%s] ", m.Content)
+
+	case *msg.P2pMessageVisitor:
+
+		xl.Info("[visitor client ] P2pMessageVisitor - [%s] ", m.Content)
+	default:
+		log.Warn("[visitor] Error message type for the new connection [%s]", conn.RemoteAddr().String())
+		conn.Close()
+	}
+
 }
 
 // SendMessage 用于向对端发送消息
