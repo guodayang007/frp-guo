@@ -256,7 +256,7 @@ func (c *Controller) HandleClient(m *msg.NatHoleClient, transporter transport.Me
 	if !ok {
 		return
 	}
-	log.Trace("handle client message, sid [%s], server name: %s", session.sid, m.ProxyName)
+	log.Info("handle client message, sid [%s], server name: %s", session.sid, m.ProxyName)
 	session.clientMsg = m
 	session.clientTransporter = transporter
 	select {
@@ -268,16 +268,17 @@ func (c *Controller) HandleClient(m *msg.NatHoleClient, transporter transport.Me
 func (c *Controller) HandleReport(m *msg.NatHoleReport) {
 	c.mu.RLock()
 	session, ok := c.sessions[m.Sid]
+	log.Info("c.sessions %v", c.sessions)
 	c.mu.RUnlock()
 	if !ok {
-		log.Trace("sid [%s] report make hole success: %v, but session not found", m.Sid, m.Success)
+		log.Trace("sid [%s] report make hole success: %v message:%s, but session not found", m.Sid, m.Success, m.Content)
 		return
 	}
 	if m.Success {
 		c.analyzer.ReportSuccess(session.analysisKey, session.recommandMode, session.recommandIndex)
 	}
-	log.Info("sid [%s] report make hole success: %v, mode %v, index %v",
-		m.Sid, m.Success, session.recommandMode, session.recommandIndex)
+	log.Info("sid [%s] report make hole success: %v, mode %v, index %v context %v",
+		m.Sid, m.Success, session.recommandMode, session.recommandIndex, m.Content)
 }
 
 func (c *Controller) GenNatHoleResponse(transactionID string, session *Session, errInfo string) *msg.NatHoleResp {

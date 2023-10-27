@@ -213,50 +213,47 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 	if len(errs) > 0 {
 		xl.Trace("join connections errors: %v", errs)
 	}
-
-	//	--------------------------------------
-	// 创建一个通道用于接收消息
-	msgChan := make(chan string)
-
-	// 启动一个协程用于接收消息
+	messageCh := make(chan []byte)
+	defer close(messageCh)
+	// Goroutine to read data from userConn and send it to the tunnel connection
 	go func() {
+		buffer := make([]byte, 8192) // Adjust the buffer size as needed
 		for {
-			// 从连接中读取消息
-			buffer := make([]byte, 1024)
-			n, err := muxConnRWCloser.Read(buffer)
+			n, err := userConn.Read(buffer)
 			if err != nil {
-				// 处理读取错误，例如连接关闭
-				break
+				xl.Debug("User connection closed: %v", err)
+				return
 			}
-
-			// 将读取到的数据转换为字符串消息
-			msg := string(buffer[:n])
-			xl.Info("接收到消息：%v", msg)
-
-			// 将消息发送到通道
-			msgChan <- msg
+			message := P2pMessage{
+				Text:    string(buffer[:n]),
+				Content: "Additional Content", // Modify or set your content as needed
+			}
+			messageJSON, err := json.Marshal(message)
+			if err != nil {
+				xl.Error("Failed to marshal message: %v", err)
+				return
+			}
+			messageCh <- messageJSON                  // Send the JSON-encoded message to the channel
+			_, _ = muxConnRWCloser.Write(messageJSON) // Write data to the tunnel connection
 		}
 	}()
 
-	// 启动一个协程用于发送消息
+	// Goroutine to read data from the tunnel connection and send it to userConn
 	go func() {
+		buffer := make([]byte, 8192) // Adjust the buffer size as needed
 		for {
-			// 从消息通道接收消息
-			msg := <-msgChan
-			message := Message{
-				Content: msg,
-				Sid:     "11",
-			}
-			// 处理需要发送的消息内容
-			messageByte, _ := json.Marshal(message)
-			// ...
-
-			// 将消息内容发送到连接
-			_, err := muxConnRWCloser.Write([]byte(messageByte))
+			n, err := muxConnRWCloser.Read(buffer)
 			if err != nil {
-				// 处理写入错误
-				break
+				xl.Debug("Tunnel connection closed: %v", err)
+				return
 			}
+			var receivedMessage P2pMessage
+			if err := json.Unmarshal(buffer[:n], &receivedMessage); err != nil {
+				xl.Error("Failed to unmarshal received data: %v", err)
+				return
+			}
+			xl.Debug("Received message: %s, Content: %s", receivedMessage.Text, receivedMessage.Content)
+			_, _ = userConn.Write(buffer[:n]) // Write data to the user connection
 		}
 	}()
 
@@ -386,6 +383,9 @@ func (sv *XTCPVisitor) makeNatHole() {
 		xl.Warn("[visitor] init tunnel session error: %v", err)
 		return
 	}
+	// 打洞连接成功后，可以开始监听
+	go sv.handleIncomingMessages(listenConn) // 假设有一个名为 handleIncomingMessages 的函数用于监听消息
+
 	// 创建消息
 	message := &P2pMessage{
 		Text:    "Hello, Frp P2P!",
@@ -393,23 +393,41 @@ func (sv *XTCPVisitor) makeNatHole() {
 	}
 
 	// 发送消息
-	if err := sendMessage(listenConn, message); err != nil {
+	if err := SendMessage(listenConn, raddr, message); err != nil {
 		xl.Error("Failed to send message: %v", err)
 	}
 
-	// 接收消息
-	receivedMessage, err := receiveMessage(listenConn)
-	if err != nil {
-		xl.Error("Failed to receive message: %v", err)
-	} else {
+}
+func (sv *XTCPVisitor) handleIncomingMessages(conn *net.UDPConn) {
+	xl := xlog.FromContextSafe(sv.ctx)
+	for {
+		buffer := make([]byte, 1024)
+		n, _, err := conn.ReadFromUDP(buffer)
+		if err != nil {
+			xl.Error("Failed to read data: %v", err)
+			return
+		}
+
+		var receivedMessage P2pMessage
+		if err := json.Unmarshal(buffer[:n], &receivedMessage); err != nil {
+			xl.Error("Failed to unmarshal received data: %v", err)
+			return
+		}
+
 		xl.Info("Received message: %s", receivedMessage.Text)
+		// 处理接收到的消息，例如打印或执行其他操作
 	}
 }
 
-// sendMessage 用于向对端发送消息
-func sendMessage(conn io.ReadWriteCloser, msg *P2pMessage) error {
-	enc := json.NewEncoder(conn)
-	return enc.Encode(msg)
+// SendMessage 用于向对端发送消息
+func SendMessage(conn *net.UDPConn, addr *net.UDPAddr, msg *P2pMessage) error {
+	encodedMsg, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
+	_, err = conn.WriteToUDP(encodedMsg, addr)
+	return err
 }
 
 // receiveMessage 用于从对端接收消息

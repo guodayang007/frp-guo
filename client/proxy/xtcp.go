@@ -15,6 +15,8 @@
 package proxy
 
 import (
+	"encoding/json"
+	"github.com/fatedier/frp/client/visitor"
 	"io"
 	"net"
 	"reflect"
@@ -71,9 +73,9 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 	//这里做逻辑 TODO
 	//看看怎么接数据。
 
-	//我们不用那么复杂 这里就可以做 验证签名 就看怎么得到数据
+	//这里就可以做 验证签名 就看怎么得到数据
 
-	//不用那么复杂 现在先 随便发 123 看我能不能接  如果我能接 那么我这里可以改成 接受签名数据。？ 解析签名者  是否是我run这个程序配置的钱包  就能决定他们是否能连接。
+	//现在先 随便发 123 看我能不能接  如果我能接 那么我这里可以改成 接受签名数据。？ 解析签名者  是否是我run这个程序配置的钱包  就能决定他们是否能连接。
 
 	xl.Info("【proxy】 nathole prepare success, nat type: %s, behavior: %s, addresses: %v, assistedAddresses: %v",
 		prepareResult.NatType, prepareResult.Behavior, prepareResult.Addrs, prepareResult.AssistedAddrs)
@@ -169,9 +171,55 @@ func (pxy *XTCPProxy) listenByKCP(listenConn *net.UDPConn, raddr *net.UDPAddr, s
 			return
 		}
 		go pxy.HandleTCPWorkConnection(muxConn, startWorkConnMsg, []byte(pxy.cfg.Secretkey))
+
+		// 在这里可以添加代码来发送和接收消息
+		go pxy.SendAndReceiveMessages(muxConn)
 	}
 }
+func SendMessage(conn net.Conn, message *visitor.P2pMessage) error {
+	// 编码消息为 JSON
+	messageJSON, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
 
+	// 发送消息
+	_, err = conn.Write(messageJSON)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+func (pxy *XTCPProxy) SendAndReceiveMessages(conn net.Conn) {
+	xl := pxy.xl
+	for {
+		// 发送消息
+		message := &visitor.P2pMessage{
+			Text:    "Hello, Frp P2P!",
+			Content: "server proxy fang",
+		}
+		if err := SendMessage(conn, message); err != nil {
+			xl.Error("Failed to send message: %v", err)
+		}
+
+		// 接收消息
+		receivedData := make([]byte, 1024)
+		n, err := conn.Read(receivedData)
+		if err != nil {
+			xl.Error("Failed to read data: %v", err)
+			return
+		}
+
+		var receivedMessage visitor.P2pMessage
+		if err := json.Unmarshal(receivedData[:n], &receivedMessage); err != nil {
+			xl.Error("Failed to unmarshal received data: %v", err)
+			return
+		}
+
+		xl.Info("Received message: %s", receivedMessage.Text)
+	}
+}
 func (pxy *XTCPProxy) listenByQUIC(listenConn *net.UDPConn, _ *net.UDPAddr, startWorkConnMsg *msg.StartWorkConn) {
 	xl := pxy.xl
 	defer listenConn.Close()
