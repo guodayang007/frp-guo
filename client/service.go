@@ -138,6 +138,7 @@ func (svr *Service) Run(ctx context.Context) error {
 			util.RandomSleep(5*time.Second, 0.9, 1.1)
 		} else {
 			// login success
+			xl.Info("client login to server success with run id [%s] ", svr.runID)
 			ctl := NewControl(svr.ctx, svr.runID, conn, cm, svr.cfg, svr.pxyCfgs, svr.visitorCfgs, svr.authSetter)
 			ctl.Run()
 			svr.ctlMu.Lock()

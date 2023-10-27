@@ -214,50 +214,6 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 	if len(errs) > 0 {
 		xl.Trace("join connections errors: %v", errs)
 	}
-	messageCh := make(chan []byte)
-	defer close(messageCh)
-	// Goroutine to read data from userConn and send it to the tunnel connection
-	go func() {
-		buffer := make([]byte, 8192) // Adjust the buffer size as needed
-		for {
-			n, err := userConn.Read(buffer)
-			if err != nil {
-				xl.Debug("User connection closed: %v", err)
-				return
-			}
-			message := msg.P2pMessage{
-				Text:    string(buffer[:n]),
-				Content: "Additional Content", // Modify or set your content as needed
-			}
-			messageJSON, err := json.Marshal(message)
-			if err != nil {
-				xl.Error("Failed to marshal message: %v", err)
-				return
-			}
-			messageCh <- messageJSON                  // Send the JSON-encoded message to the channel
-			_, _ = muxConnRWCloser.Write(messageJSON) // Write data to the tunnel connection
-		}
-	}()
-
-	// Goroutine to read data from the tunnel connection and send it to userConn
-	go func() {
-		buffer := make([]byte, 8192) // Adjust the buffer size as needed
-		for {
-			n, err := muxConnRWCloser.Read(buffer)
-			if err != nil {
-				xl.Debug("Tunnel connection closed: %v", err)
-				return
-			}
-			var receivedMessage msg.P2pMessage
-			if err := json.Unmarshal(buffer[:n], &receivedMessage); err != nil {
-				xl.Error("[visitor] Failed to unmarshal received data: %v", err)
-				return
-			}
-			xl.Debug("Received message: %s, Content: %s", receivedMessage.Text, receivedMessage.Content)
-			_, _ = userConn.Write(buffer[:n]) // Write data to the user connection
-		}
-	}()
-
 }
 
 // openTunnel will open a tunnel connection to the target server. openTunnel 将打开与目标服务器的隧道连接。
@@ -375,18 +331,24 @@ func (sv *XTCPVisitor) makeNatHole() {
 	}
 
 	// 打洞连接成功后，可以开始监听
-	go sv.handleIncomingMessages(listenConn) // 假设有一个名为 handleIncomingMessages 的函数用于监听消息
+	//go sv.handleIncomingMessages(listenConn) // 假设有一个名为 handleIncomingMessages 的函数用于监听消息
 
 	// 创建消息
 	message := &msg.P2pMessage{
 		Text:    "Hello, Frp P2P!",
 		Content: "client visitor fang",
 	}
+	err = sv.BaseVisitor.helper.MsgTransporter().Send(message)
+	if err != nil {
+		xl.Error("[visitor] Failed to send message: %v", err)
+	}
+
+	xl.Info("[visitor] send message success")
 
 	// 发送消息
-	if err := SendMessage(listenConn, raddr, message); err != nil {
-		xl.Error("Failed to send message: %v", err)
-	}
+	//if err := SendMessage(listenConn, raddr, message); err != nil {
+	//	xl.Error("Failed to send message: %v", err)
+	//}
 
 }
 func (sv *XTCPVisitor) handleIncomingMessages(conn *net.UDPConn) {

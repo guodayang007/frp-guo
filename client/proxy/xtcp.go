@@ -118,13 +118,15 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 	}
 	listenConn = newListenConn
 	xl.Info("【proxy】establishing nat hole connection successful, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
-
-	_ = pxy.msgTransporter.Send(&msg.NatHoleReport{
+	xl.Warn("【proxy】 make hole  2:")
+	err = pxy.msgTransporter.Send(&msg.NatHoleReport{
 		Sid:     natHoleRespMsg.Sid,
 		Success: true,
 		Content: "client InWorkConn true fang",
 	})
-
+	if err != nil {
+		xl.Warn("【proxy】send NatHoleReport error: %v", err)
+	}
 	if natHoleRespMsg.Protocol == "kcp" {
 		pxy.listenByKCP(listenConn, raddr, startWorkConnMsg)
 		return

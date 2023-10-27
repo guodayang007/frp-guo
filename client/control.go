@@ -293,6 +293,7 @@ func (ctl *Control) msgHandler() {
 	}
 
 	ctl.lastPong = time.Now()
+
 	for {
 		select {
 		case <-hbSendCh:
