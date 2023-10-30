@@ -533,9 +533,9 @@ func (ctl *Control) manager() {
 
 				xl.Info("[server manager] P2pMessage - [%s] -[%s]", m.Content, m.Text)
 
-				ctl.sendCh <- msg.P2pMessageVisitor{
-					Content: "servet send to client",
-				}
+				//ctl.sendCh <- msg.P2pMessageVisitor{
+				//	Content: "servet send to client",
+				//}
 
 			case *msg.P2pMessageProxy:
 
@@ -543,7 +543,7 @@ func (ctl *Control) manager() {
 
 			case *msg.P2pMessageVisitor:
 
-				xl.Info("[server manager] P2pMessageVisitor - [%s] ", m.Content)
+				xl.Info("[server manager] P2pMessageVisitor - -[%+v]", m)
 
 			case *msg.Ping:
 				xl.Info("[server manager]  Ping 111 =%v", m)
