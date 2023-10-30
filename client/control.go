@@ -161,6 +161,7 @@ func (ctl *Control) HandleReqWorkConn(_ *msg.ReqWorkConn) {
 		workConn.Close()
 		return
 	}
+	xl.Info("[client] HandleReqWorkConn")
 
 	// dispatch this work connection to related proxy
 	ctl.pm.HandleWorkConn(startMsg.ProxyName, workConn, &startMsg)
@@ -172,9 +173,9 @@ func (ctl *Control) HandleNewProxyResp(inMsg *msg.NewProxyResp) {
 	// Start a new proxy handler if no error got
 	err := ctl.pm.StartProxy(inMsg.ProxyName, inMsg.RemoteAddr, inMsg.Error)
 	if err != nil {
-		xl.Warn("[%s] start error: %v", inMsg.ProxyName, err)
+		xl.Warn("HandleNewProxyResp [%s] start error: %v", inMsg.ProxyName, err)
 	} else {
-		xl.Info("[%s] start proxy success", inMsg.ProxyName)
+		xl.Info("HandleNewProxyResp [%s] start proxy success", inMsg.ProxyName)
 	}
 }
 
@@ -257,9 +258,10 @@ func (ctl *Control) writer() {
 			xl.Info("control writer is closing")
 			return
 		}
+		xl.Info("[client control.go] writer =%v", m)
 
 		if err := msg.WriteMsg(encWriter, m); err != nil {
-			xl.Warn("[client] write message to control connection error: %v", err)
+			xl.Warn("[client control.go] write message to control connection error: %v", err)
 			return
 		}
 	}
@@ -321,27 +323,27 @@ func (ctl *Control) msgHandler() {
 
 			switch m := rawMsg.(type) {
 			case *msg.ReqWorkConn:
-				xl.Info("[client ]  ReqWorkConn 111 ")
+				xl.Info("[client control]  ReqWorkConn 111 =%s", m)
 				go ctl.HandleReqWorkConn(m)
 			case *msg.NewProxyResp:
-				xl.Info("[client ]  NewProxyResp 111 ")
+				xl.Info("[client control]  NewProxyResp 111 =%s", m)
 				ctl.HandleNewProxyResp(m)
 			case *msg.NatHoleResp:
-				xl.Info("[client ]  NatHoleResp 111 ")
+				xl.Info("[client control]  NatHoleResp 111 =%s", m)
 				ctl.HandleNatHoleResp(m)
 
 			case *msg.P2pMessage:
 				// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
 
-				xl.Info("[client ] P2pMessage - [%s] -[%s]", m.Content, m.Text)
+				xl.Info("[client control ] P2pMessage - [%s] -[%s]", m.Content, m.Text)
 
 			case *msg.P2pMessageProxy:
 
-				xl.Info("[proxy  client ] P2pMessageProxy - [%s] ", m.Content)
+				xl.Info("[client control ] P2pMessageProxy - [%s] ", m.Content)
 
 			case *msg.P2pMessageVisitor:
 
-				xl.Info("[visitor client ] P2pMessageVisitor - [%s] ", m.Content)
+				xl.Info("[client control ] P2pMessageVisitor - [%s] ", m.Content)
 			case *msg.Pong:
 				if m.Error != "" {
 					xl.Error("Pong contains error: %s", m.Error)

@@ -104,10 +104,10 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		xl.Warn("【proxy】nathole exchange info error: %v", err)
 		return
 	}
-	xl.Info("【proxy】nathole exchange info start fangfang的密码 [%s] ", natHoleRespMsg.Password)
 	if natHoleRespMsg.Password == "" {
 		natHoleRespMsg.Password = "client fangfang InWorkConn"
 	}
+	xl.Info("【proxy】nathole exchange info start fangfang的密码 [%s] ", natHoleRespMsg.Password)
 
 	xl.Info("get natHoleRespMsg, sid [%s], protocol [%s], candidate address %v, assisted address %v, detectBehavior: %+v",
 		natHoleRespMsg.Sid, natHoleRespMsg.Protocol, natHoleRespMsg.CandidateAddrs,
@@ -126,7 +126,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		return
 	}
 	listenConn = newListenConn
-	xl.Info("【proxy】establishing nat hole connection successful, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
+	xl.Info("【proxy】establishing nat hole connection successful------, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
 	xl.Warn("【proxy】 make hole  2:")
 	err = pxy.msgTransporter.Send(&msg.NatHoleReport{
 		Sid:     natHoleRespMsg.Sid,
@@ -145,6 +145,8 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 	pxy.listenByQUIC(listenConn, raddr, startWorkConnMsg)
 
 	go pxy.listenForMessages(conn)
+
+	xl.Info("[proxy] raddr=%v ,startWorkConnMsg=%v", raddr, startWorkConnMsg)
 
 	// 创建消息
 	message := &msg.P2pMessage{

@@ -474,6 +474,7 @@ func (ctl *Control) manager() {
 
 			switch m := rawMsg.(type) {
 			case *msg.NewProxy:
+				xl.Info("[client manager] NewProxy 111 =%v", m)
 				content := &plugin.NewProxyContent{
 					User: plugin.UserInfo{
 						User:  ctl.loginMsg.User,
@@ -504,15 +505,34 @@ func (ctl *Control) manager() {
 				}
 				ctl.sendCh <- resp
 			case *msg.NatHoleVisitor:
+				xl.Info("[client manager]  NatHoleVisitor 111 =%v", m)
 				go ctl.HandleNatHoleVisitor(m)
 			case *msg.NatHoleClient:
+				xl.Info("[client manager]  NatHoleClient 111 =%v", m)
 				go ctl.HandleNatHoleClient(m)
 			case *msg.NatHoleReport:
+				xl.Info("[client manager]  NatHoleReport 111 =%v", m)
 				go ctl.HandleNatHoleReport(m)
 			case *msg.CloseProxy:
+				xl.Info("[client manager]  CloseProxy 111 =%v", m)
 				_ = ctl.CloseProxy(m)
 				xl.Info("close proxy [%s] success", m.ProxyName)
+
+			case *msg.P2pMessage:
+				// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
+
+				xl.Info("[client manager] P2pMessage - [%s] -[%s]", m.Content, m.Text)
+
+			case *msg.P2pMessageProxy:
+
+				xl.Info("[client manager] P2pMessageProxy - [%s] ", m.Content)
+
+			case *msg.P2pMessageVisitor:
+
+				xl.Info("[client manager] P2pMessageVisitor - [%s] ", m.Content)
+
 			case *msg.Ping:
+				xl.Info("[client manager]  Ping 111 =%v", m)
 				content := &plugin.PingContent{
 					User: plugin.UserInfo{
 						User:  ctl.loginMsg.User,

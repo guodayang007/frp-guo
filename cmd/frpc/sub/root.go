@@ -64,6 +64,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// Do not show command usage here.
+		fmt.Println("rootCmd ", cfgFile)
 		err := runClient(cfgFile)
 		if err != nil {
 			fmt.Println(err)

@@ -44,6 +44,8 @@ func Discover(stunServers []string, localAddr string) ([]string, net.Addr, error
 	for _, addr := range stunServers {
 		// get external address from stun server
 		externalAddrs, err := discoverConn.discoverFromStunServer(addr)
+
+		fmt.Println("Discover externalAddrs:", externalAddrs)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -101,7 +103,7 @@ func (c *discoverConn) readLoop() {
 			return
 		}
 		buf = buf[:n]
-
+		fmt.Println("readLoop:", buf, addr, string(buf))
 		c.messageChan <- &Message{
 			Body: buf,
 			Addr: addr.String(),
@@ -129,6 +131,7 @@ func (c *discoverConn) doSTUNRequest(addr string) (*stunResponse, error) {
 	var m stun.Message
 	select {
 	case msg := <-c.messageChan:
+		fmt.Println("doSTUNRequest messageChan:", string(msg.Body), msg.Addr)
 		m.Raw = msg.Body
 		if err := m.Decode(); err != nil {
 			return nil, err

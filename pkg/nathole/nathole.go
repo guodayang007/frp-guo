@@ -296,8 +296,9 @@ func waitDetectMessage(
 			xl.Warn("decode sid message error: %v", err)
 			continue
 		}
+		xl.Info("waitDetectMessage buf = %v addr=%v n=%v", string(buf[:n]), raddr, n)
 		pool.PutBuf(buf)
-
+		xl.Info("waitDetectMessage get sid message: %+v", m)
 		if m.Sid != sid {
 			xl.Warn("get sid message with wrong sid: %s, expect: %s", m.Sid, sid)
 			continue
@@ -343,7 +344,7 @@ func sendSidMessage(
 		Sid:           sid,
 		Response:      false,
 		Nonce:         strings.Repeat("0", rand.Intn(20)),
-		Password:      "123456",
+		Password:      "sendSidMessage 123456",
 	}
 	buf, err := EncodeMessage(m, key)
 	if err != nil {

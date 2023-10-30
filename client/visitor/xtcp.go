@@ -55,6 +55,7 @@ type XTCPVisitor struct {
 func (sv *XTCPVisitor) Run() (err error) {
 	sv.ctx, sv.cancel = context.WithCancel(sv.ctx)
 
+	fmt.Println("[visitor] sv.cfg.Protocol  Run", sv.cfg.Protocol)
 	if sv.cfg.Protocol == "kcp" {
 		sv.session = NewKCPTunnelSession()
 	} else {
@@ -110,6 +111,7 @@ func (sv *XTCPVisitor) internalConnWorker() {
 			xl.Warn("xtcp internal listener closed")
 			return
 		}
+		xl.Info("[visitor] internalConnWorker")
 		go sv.handleConn(conn)
 	}
 }
@@ -167,6 +169,8 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 			userConn.Close()
 		}
 	}()
+	userConn.Write([]byte("hello world"))
+	xl.Info("[visitor] handleConn")
 
 	xl.Debug("get a new xtcp user connection")
 
@@ -215,25 +219,6 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 		xl.Trace("join connections errors: %v", errs)
 	}
 
-	// 打洞连接成功后，可以开始监听
-	go sv.listenForMessages(userConn) // 假设有一个名为 handleIncomingMessages 的函数用于监听消息
-
-	// 创建消息
-	message := &msg.P2pMessage{
-		Text:    "Hello, Frp P2P!",
-		Content: "client visitor fang",
-	}
-	err = sv.BaseVisitor.helper.MsgTransporter().Send(message)
-	if err != nil {
-		xl.Error("[visitor] Failed to send message: %v", err)
-	}
-	// 发送消息
-	if err := sv.sendMessage(userConn, message); err != nil {
-		xl.Error("【visitor】xtcp send message error: %v", err)
-		return
-	}
-
-	xl.Info("[visitor] send message success")
 }
 
 // openTunnel will open a tunnel connection to the target server. openTunnel 将打开与目标服务器的隧道连接。
@@ -330,9 +315,9 @@ func (sv *XTCPVisitor) makeNatHole() {
 		return
 	}
 
-	xl.Info("[visitor]  get natHoleRespMsg, sid [%s], protocol [%s], candidate address %v, assisted address %v, detectBehavior: %+v",
+	xl.Warn("[visitor]  get natHoleRespMsg, sid [%s], protocol [%s], candidate address %v, assisted address %v, detectBehavior: %+v password [%s]",
 		natHoleRespMsg.Sid, natHoleRespMsg.Protocol, natHoleRespMsg.CandidateAddrs,
-		natHoleRespMsg.AssistedAddrs, natHoleRespMsg.DetectBehavior)
+		natHoleRespMsg.AssistedAddrs, natHoleRespMsg.DetectBehavior, natHoleRespMsg.Password)
 
 	natHoleRespMsg.Password = "123321"
 	newListenConn, raddr, err := nathole.MakeHole(sv.ctx, listenConn, natHoleRespMsg, []byte(sv.cfg.SecretKey))
@@ -342,7 +327,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 		return
 	}
 	listenConn = newListenConn
-	xl.Info("[visitor] establishing nat hole connection successful, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
+	xl.Info("[visitor] establishing nat hole connection successful-----------, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
 
 	if err := sv.session.Init(listenConn, raddr); err != nil {
 		listenConn.Close()
@@ -350,13 +335,49 @@ func (sv *XTCPVisitor) makeNatHole() {
 		return
 	}
 
+	err = sv.sendUdpMessage(listenConn, raddr, &msg.P2pMessage{
+		Text:    "visitor",
+		Content: "hello fang",
+	})
+
+	if err != nil {
+		xl.Warn("[visitor] send message sendUdpMessage error: %v", err)
+		return
+	}
+	xl.Warn("[visitor] send message ")
+
+}
+
+func (sv *XTCPVisitor) sendUdpMessage(conn *net.UDPConn, raddr *net.UDPAddr, message *msg.P2pMessage) error {
+	xl := xlog.FromContextSafe(sv.ctx)
+	//err := msg.WriteMsg(conn, &message)
+	marshal, err := json.Marshal(&message)
+	if err != nil {
+		xl.Error("[visitor] sendUdpMessage EncodeMessage Failed to send message: %v", err)
+		return err
+	}
+	n, err := conn.WriteToUDP(marshal, raddr)
+
+	if err != nil {
+		xl.Error("[visitor] sendUdpMessage Failed to send message: %v", err)
+		return err
+	}
+
+	xl.Info("[visitor] sendUdpMessage %v", n)
+	return err
 }
 func (sv *XTCPVisitor) sendMessage(conn net.Conn, message *msg.P2pMessage) error {
 	xl := xlog.FromContextSafe(sv.ctx)
-	err := msg.WriteMsg(conn, message)
+	//err := msg.WriteMsg(conn, &message)
+	content, err := json.Marshal(message)
 	if err != nil {
-		xl.Error("[visitor] Failed to send message: %v", err)
+		return err
 	}
+	n, err := conn.Write(content)
+	if err != nil {
+		xl.Error("[visitor] sendMessage Failed to send message: %v", err)
+	}
+	xl.Info("[visitor] sendMessage %v", n)
 	return err
 }
 func (sv *XTCPVisitor) listenForMessages(conn net.Conn) {
@@ -389,27 +410,6 @@ func (sv *XTCPVisitor) listenForMessages(conn net.Conn) {
 		conn.Close()
 	}
 
-}
-
-// SendMessage 用于向对端发送消息
-func SendMessage(conn *net.UDPConn, addr *net.UDPAddr, msg *msg.P2pMessage) error {
-	encodedMsg, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-
-	_, err = conn.WriteToUDP(encodedMsg, addr)
-	return err
-}
-
-// receiveMessage 用于从对端接收消息
-func receiveMessage(conn io.ReadWriteCloser) (*msg.P2pMessage, error) {
-	dec := json.NewDecoder(conn)
-	var msg msg.P2pMessage
-	if err := dec.Decode(&msg); err != nil {
-		return nil, err
-	}
-	return &msg, nil
 }
 
 type TunnelSession interface {
