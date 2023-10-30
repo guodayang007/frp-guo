@@ -173,9 +173,7 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 		}
 	}()
 	userConn.Write([]byte("hello world"))
-	xl.Info("[visitor] handleConn")
-
-	xl.Error("get a new xtcp user connection")
+	xl.Info("[visitor] handleConn get a new xtcp user connection")
 
 	// Open a tunnel connection to the server. If there is already a successful hole-punching connection,
 	// it will be reused. Otherwise, it will block and wait for a successful hole-punching connection until timeout.
@@ -339,7 +337,6 @@ func (sv *XTCPVisitor) makeNatHole() {
 		natHoleRespMsg.Sid, natHoleRespMsg.Protocol, natHoleRespMsg.CandidateAddrs,
 		natHoleRespMsg.AssistedAddrs, natHoleRespMsg.DetectBehavior, natHoleRespMsg.Password)
 
-	natHoleRespMsg.Password = "123321"
 	newListenConn, raddr, err := nathole.MakeHole(sv.ctx, listenConn, natHoleRespMsg, []byte(sv.cfg.SecretKey))
 	if err != nil {
 		listenConn.Close()
@@ -355,23 +352,23 @@ func (sv *XTCPVisitor) makeNatHole() {
 		return
 	}
 
-	err = sv.sendUdpMessage(listenConn, raddr, &msg.P2pMessage{
-		Text:    "visitor111",
-		Content: "hello fang111",
+	err = sv.sendUdpMessage(listenConn, raddr, &msg.P2pMessageProxy{
+		Content: "visitor hello fang111",
+		Sid:     natHoleRespMsg.Sid,
 	})
 
 	if err != nil {
 		xl.Error("[visitor] send message sendUdpMessage error: %v", err)
 		return
 	}
-	xl.Warn("[visitor] send message raddr = %v listenConn=%+v", raddr, listenConn)
+	xl.Warn("[visitor] send message raddr = %v listenConn=%+v sv.cfg.SecretKey=%v", raddr, listenConn, sv.cfg.SecretKey)
 
-	msg := msg.P2pMessageVisitor{
+	msg := &msg.P2pMessageVisitor{
 		Content: "visitor hello fang111",
 		Sid:     natHoleRespMsg.Sid,
 	}
-	if err := nathole.SendSidMsg(sv.ctx, listenConn, transactionID, raddr.String(), []byte(sv.cfg.SecretKey), natHoleRespMsg.DetectBehavior.TTL, msg); err != nil {
-		xl.Warn("[MakeHole] send sid message from %s to %s error: %v", listenConn.LocalAddr(), raddr, err)
+	if err := nathole.SendSidMsg(sv.ctx, listenConn, transactionID, raddr, []byte(sv.cfg.SecretKey), natHoleRespMsg.DetectBehavior.TTL, &msg); err != nil {
+		xl.Error("[MakeHole SendSidMsg] 2222 send sid message from %s to %s error: %v", listenConn.LocalAddr(), raddr, err)
 	}
 
 	//err = sv.sendMessage(listenConn, &msg.P2pMessage{
@@ -386,7 +383,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 
 }
 
-func (sv *XTCPVisitor) sendUdpMessage(conn *net.UDPConn, raddr *net.UDPAddr, message *msg.P2pMessage) error {
+func (sv *XTCPVisitor) sendUdpMessage(conn *net.UDPConn, raddr *net.UDPAddr, message *msg.P2pMessageProxy) error {
 	xl := xlog.FromContextSafe(sv.ctx)
 	//err := msg.WriteMsg(conn, &message)
 	marshal, err := json.Marshal(&message)

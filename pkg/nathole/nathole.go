@@ -16,6 +16,7 @@ package nathole
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
@@ -188,6 +189,7 @@ func MakeHole(ctx context.Context, listenConn *net.UDPConn, m *msg.NatHoleResp, 
 	}
 
 	listenConns := []*net.UDPConn{listenConn}
+	xl.Warn("[MakeHole] listenConn%v", listenConn)
 	var detectAddrs []string
 	if m.DetectBehavior.Role == DetectRoleSender {
 		// sender
@@ -213,13 +215,14 @@ func MakeHole(ctx context.Context, listenConn *net.UDPConn, m *msg.NatHoleResp, 
 			}
 		}
 	}
+	xl.Warn("[MakeHole] detectAddrs%v", detectAddrs)
 
 	detectAddrs = lo.Uniq(detectAddrs)
 	for _, detectAddr := range detectAddrs {
 		for _, conn := range listenConns {
 
 			if err := sendSidMessage(ctx, conn, m.Sid, transactionID, detectAddr, key, m.DetectBehavior.TTL); err != nil {
-				xl.Warn("[MakeHole] send sid message from %s to %s error: %v", conn.LocalAddr(), detectAddr, err)
+				xl.Error("[MakeHole] 111111 send sid message from %s to %s error: %v", conn.LocalAddr(), detectAddr, err)
 			}
 		}
 	}
@@ -345,7 +348,7 @@ func sendSidMessage(
 		Sid:           sid,
 		Response:      false,
 		Nonce:         strings.Repeat("0", rand.Intn(20)),
-		Password:      "sendSidMessage 123456",
+		Password:      "sendSidMessage 123456789",
 	}
 	buf, err := EncodeMessage(m, key)
 	if err != nil {
@@ -378,47 +381,24 @@ func sendSidMessage(
 
 func SendSidMsg(
 	ctx context.Context, conn *net.UDPConn,
-	transactionID string, addr string, key []byte, ttl int,
-	m msg.Message,
+	transactionID string, raddr *net.UDPAddr, key []byte, ttl int,
+	m interface{},
 ) error {
 	xl := xlog.FromContextSafe(ctx)
 	ttlStr := ""
 	if ttl > 0 {
 		ttlStr = fmt.Sprintf(" with ttl %d", ttl)
 	}
-	xl.Trace("send sid message from %s to %s%s", conn.LocalAddr(), addr, ttlStr)
-	raddr, err := net.ResolveUDPAddr("udp4", addr)
-	if err != nil {
-		return err
-	}
-	if transactionID == "" {
-		transactionID = NewTransactionID()
-	}
+	xl.Warn("[SendSidMsg] send sid message from %s to %s%s ttl=%v", conn.LocalAddr(), raddr, ttlStr, ttl)
 
-	buf, err := EncodeMessage(m, key)
+	buf, err := json.Marshal(&m)
 	if err != nil {
+		xl.Error("[SendSidMsg]encode message error: %v", err)
 		return err
-	}
-	if ttl > 0 {
-		uConn := ipv4.NewConn(conn)
-		original, err := uConn.TTL()
-		if err != nil {
-			xl.Trace("get ttl error %v", err)
-			return err
-		}
-		xl.Trace("original ttl %d", original)
-
-		err = uConn.SetTTL(ttl)
-		if err != nil {
-			xl.Trace("set ttl error %v", err)
-		} else {
-			defer func() {
-				_ = uConn.SetTTL(original)
-			}()
-		}
 	}
 
 	if _, err := conn.WriteToUDP(buf, raddr); err != nil {
+		xl.Error("[WriteToUDP ]send message error: %v", err)
 		return err
 	}
 	return nil
@@ -434,7 +414,7 @@ func sendSidMessageToRangePorts(
 			for i := portsRange.From; i <= portsRange.To; i++ {
 				detectAddr := net.JoinHostPort(ip, strconv.Itoa(i))
 				if err := sendFunc(conn, detectAddr); err != nil {
-					xl.Trace("send sid message from %s to %s error: %v", conn.LocalAddr(), detectAddr, err)
+					xl.Warn("[sendSidMessageToRangePorts] send sid message from %s to %s error: %v", conn.LocalAddr(), detectAddr, err)
 				}
 				time.Sleep(2 * time.Millisecond)
 			}
@@ -474,7 +454,7 @@ func sendSidMessageToRandomPorts(
 		for _, ip := range lo.Uniq(parseIPs(addrs)) {
 			detectAddr := net.JoinHostPort(ip, strconv.Itoa(port))
 			if err := sendFunc(conn, detectAddr); err != nil {
-				xl.Trace("send sid message from %s to %s error: %v", conn.LocalAddr(), detectAddr, err)
+				xl.Warn("[sendSidMessageToRandomPorts] send sid message from %s to %s error: %v", conn.LocalAddr(), detectAddr, err)
 			}
 			time.Sleep(time.Millisecond * 15)
 		}
