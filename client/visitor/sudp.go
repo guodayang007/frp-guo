@@ -137,6 +137,7 @@ func (sv *SUDPVisitor) worker(workConn net.Conn, firstPacket *msg.UDPPacket) {
 				xl.Warn("read from workconn for user udp conn error: %v", errRet)
 				return
 			}
+			xl.Warn("[SUDPVisitor] worker")
 
 			_ = conn.SetReadDeadline(time.Time{})
 			switch m := rawMsg.(type) {
@@ -183,6 +184,8 @@ func (sv *SUDPVisitor) worker(workConn net.Conn, firstPacket *msg.UDPPacket) {
 					xl.Warn("sender goroutine for udp work connection closed: %v", errRet)
 					return
 				}
+				xl.Info("[SUDPVisitor] sender sendCh  udpMsg =%+v", udpMsg)
+
 				xl.Trace("send udp package to workConn: %s", udpMsg.Content)
 			case <-closeCh:
 				return

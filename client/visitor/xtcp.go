@@ -63,8 +63,10 @@ func (sv *XTCPVisitor) Run() (err error) {
 	}
 
 	if sv.cfg.BindPort > 0 {
+		fmt.Println("[visitor] sv.cfg.BindPort > 0", sv.cfg.BindPort)
 		sv.l, err = net.Listen("tcp", net.JoinHostPort(sv.cfg.BindAddr, strconv.Itoa(sv.cfg.BindPort)))
 		if err != nil {
+			fmt.Println("[visitor] sv.cfg.BindPort > 0 err", err)
 			return
 		}
 		go sv.worker()
@@ -99,6 +101,7 @@ func (sv *XTCPVisitor) worker() {
 			xl.Warn("xtcp local listener closed")
 			return
 		}
+		xl.Info("[visitor] worker")
 		go sv.handleConn(conn)
 	}
 }
@@ -144,14 +147,14 @@ func (sv *XTCPVisitor) keepTunnelOpenWorker() {
 		case <-sv.ctx.Done():
 			return
 		case <-ticker.C:
-			xl.Debug("keepTunnelOpenWorker try to check tunnel...")
+			xl.Error("keepTunnelOpenWorker try to check tunnel...")
 			conn, err := sv.getTunnelConn()
 			if err != nil {
 				xl.Warn("keepTunnelOpenWorker get tunnel connection error: %v", err)
 				_ = sv.retryLimiter.Wait(sv.ctx)
 				continue
 			}
-			xl.Debug("keepTunnelOpenWorker check success")
+			xl.Error("keepTunnelOpenWorker check success")
 			if conn != nil {
 				conn.Close()
 			}
@@ -172,7 +175,7 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 	userConn.Write([]byte("hello world"))
 	xl.Info("[visitor] handleConn")
 
-	xl.Debug("get a new xtcp user connection")
+	xl.Error("get a new xtcp user connection")
 
 	// Open a tunnel connection to the server. If there is already a successful hole-punching connection,
 	// it will be reused. Otherwise, it will block and wait for a successful hole-punching connection until timeout.
@@ -190,7 +193,7 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 			return
 		}
 
-		xl.Debug("try to transfer connection to visitor: %s", sv.cfg.FallbackTo)
+		xl.Error("try to transfer connection to visitor: %s", sv.cfg.FallbackTo)
 		if err := sv.helper.TransferConn(sv.cfg.FallbackTo, userConn); err != nil {
 			xl.Error("transfer connection to visitor %s error: %v", sv.cfg.FallbackTo, err)
 			return
@@ -199,6 +202,23 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 		return
 	}
 
+	xl.Info("[visitor] handleConn tunnelConn", sv.cfg.SecretKey)
+	message, err := nathole.EncodeMessage(msg.P2pMessage{
+		Text:    "XTCPVisitor",
+		Content: "handleConn",
+	}, []byte(sv.cfg.SecretKey))
+	if err != nil {
+		xl.Error("[visitor] handleConn encode message error: %v", err)
+	}
+
+	n, err := tunnelConn.Write(message)
+
+	if err != nil {
+		xl.Error("[visitor] handleConn write message error: %v", err)
+
+	}
+
+	xl.Info("[visitor] handleConn tunnelConn", n)
 	var muxConnRWCloser io.ReadWriteCloser = tunnelConn
 	if sv.cfg.Transport.UseEncryption {
 		muxConnRWCloser, err = libio.WithEncryption(muxConnRWCloser, []byte(sv.cfg.SecretKey))
@@ -277,16 +297,16 @@ func (sv *XTCPVisitor) getTunnelConn() (net.Conn, error) {
 // 4. Create a tunnel session using an underlying UDP connection.
 func (sv *XTCPVisitor) makeNatHole() {
 	xl := xlog.FromContextSafe(sv.ctx)
-	xl.Trace("[visitor] makeNatHole start")
+	xl.Warn("[visitor] makeNatHole start")
 	if err := nathole.PreCheck(sv.ctx, sv.helper.MsgTransporter(), sv.cfg.ServerName, 5*time.Second); err != nil {
 		xl.Warn("[visitor] nathole precheck error: %v", err)
 		return
 	}
 
-	xl.Trace("[visitor] nathole prepare start")
+	xl.Warn("[visitor] nathole prepare start")
 	prepareResult, err := nathole.Prepare([]string{sv.clientCfg.NatHoleSTUNServer})
 	if err != nil {
-		xl.Warn("[visitor] nathole prepare error 2: %v", err)
+		xl.Error("[visitor] nathole prepare error 2: %v", err)
 		return
 	}
 	xl.Info("[visitor] nathole prepare success, nat type: %s, behavior: %s, addresses: %v, assistedAddresses: %v",
@@ -311,7 +331,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 	natHoleRespMsg, err := nathole.ExchangeInfo(sv.ctx, sv.helper.MsgTransporter(), transactionID, natHoleVisitorMsg, 5*time.Second)
 	if err != nil {
 		listenConn.Close()
-		xl.Warn("nathole exchange info error: %v", err)
+		xl.Error("nathole exchange info error: %v", err)
 		return
 	}
 
@@ -323,7 +343,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 	newListenConn, raddr, err := nathole.MakeHole(sv.ctx, listenConn, natHoleRespMsg, []byte(sv.cfg.SecretKey))
 	if err != nil {
 		listenConn.Close()
-		xl.Warn("[visitor] make hole error 1: %v", err)
+		xl.Error("[visitor] make hole error 1: %v", err)
 		return
 	}
 	listenConn = newListenConn
@@ -336,15 +356,25 @@ func (sv *XTCPVisitor) makeNatHole() {
 	}
 
 	err = sv.sendUdpMessage(listenConn, raddr, &msg.P2pMessage{
-		Text:    "visitor",
-		Content: "hello fang",
+		Text:    "visitor111",
+		Content: "hello fang111",
 	})
 
 	if err != nil {
-		xl.Warn("[visitor] send message sendUdpMessage error: %v", err)
+		xl.Error("[visitor] send message sendUdpMessage error: %v", err)
 		return
 	}
 	xl.Warn("[visitor] send message ")
+
+	err = sv.sendMessage(listenConn, &msg.P2pMessage{
+		Text:    "visitor222",
+		Content: "hello fang222",
+	})
+
+	if err != nil {
+		xl.Error("[visitor] send message sendUdpMessage error: %v", err)
+		return
+	}
 
 }
 
