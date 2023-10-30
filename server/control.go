@@ -511,12 +511,12 @@ func (ctl *Control) manager() {
 				xl.Info("[server manager]  NatHoleVisitor 111 =%v", m)
 				go ctl.HandleNatHoleVisitor(m)
 
-				err := ctl.msgTransporter.Send(msg.P2pMessageVisitor{
-					Content: "NatHoleVisitor server send",
-				})
-				if err != nil {
-					xl.Error("[server] send msg error: %v", err)
-				}
+				//err := ctl.msgTransporter.Send(msg.P2pMessageVisitor{
+				//	Content: "NatHoleVisitor server send",
+				//})
+				//if err != nil {
+				//	xl.Error("[server] send msg error: %v", err)
+				//}
 			case *msg.NatHoleClient:
 				xl.Info("[server manager]  NatHoleClient 111 =%v", m)
 				go ctl.HandleNatHoleClient(m)
