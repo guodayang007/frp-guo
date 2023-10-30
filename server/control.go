@@ -523,6 +523,10 @@ func (ctl *Control) manager() {
 
 				xl.Info("[client manager] P2pMessage - [%s] -[%s]", m.Content, m.Text)
 
+				ctl.sendCh <- msg.P2pMessageVisitor{
+					Content: "servet send to client",
+				}
+
 			case *msg.P2pMessageProxy:
 
 				xl.Info("[client manager] P2pMessageProxy - [%s] ", m.Content)
