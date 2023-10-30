@@ -38,6 +38,9 @@ const (
 	TypeNatHoleResp        = 'm'
 	TypeNatHoleSid         = '5'
 	TypeNatHoleReport      = '6'
+	TypeP2pMessage         = '7'
+	TypeP2pMessageProxy    = '8'
+	TypeP2pMessageVisitor  = '9'
 )
 
 var msgTypeMap = map[byte]interface{}{
@@ -59,6 +62,9 @@ var msgTypeMap = map[byte]interface{}{
 	TypeNatHoleResp:        NatHoleResp{},
 	TypeNatHoleSid:         NatHoleSid{},
 	TypeNatHoleReport:      NatHoleReport{},
+	TypeP2pMessage:         P2pMessage{},
+	TypeP2pMessageProxy:    P2pMessageProxy{},
+	TypeP2pMessageVisitor:  P2pMessageVisitor{},
 }
 
 var TypeNameNatHoleResp = reflect.TypeOf(&NatHoleResp{}).Elem().Name()
