@@ -359,17 +359,26 @@ func (sv *XTCPVisitor) makeNatHole() {
 
 	if err != nil {
 		xl.Error("[visitor] send message sendUdpMessage error: %v", err)
-		return
 	}
-	xl.Warn("[visitor] send message raddr = %v listenConn=%+v sv.cfg.SecretKey=%v", raddr, listenConn, sv.cfg.SecretKey)
 
-	msg := &msg.P2pMessageVisitor{
+	pMsg := &msg.P2pMessageVisitor{
 		Content: "visitor hello fang111",
 		Sid:     natHoleRespMsg.Sid,
 	}
-	if err := nathole.SendSidMsg(sv.ctx, listenConn, transactionID, raddr, []byte(sv.cfg.SecretKey), natHoleRespMsg.DetectBehavior.TTL, &msg); err != nil {
+	if err := nathole.SendSidMsg(sv.ctx, listenConn, transactionID, raddr, []byte(sv.cfg.SecretKey), natHoleRespMsg.DetectBehavior.TTL, &pMsg); err != nil {
 		xl.Error("[MakeHole SendSidMsg] 2222 send sid message from %s to %s error: %v", listenConn.LocalAddr(), raddr, err)
 	}
+
+	err = msg.WriteMsg(listenConn, &msg.P2pMessageProxy{
+		Content: "visitor hello fang111",
+		Sid:     natHoleRespMsg.Sid,
+	})
+	if err != nil {
+		xl.Error("[visitor] WriteMsg send message  error: %v", err)
+		return
+	}
+
+	xl.Warn("[visitor] send message raddr = %v listenConn=%+v sv.cfg.SecretKey=%v", raddr, listenConn, sv.cfg.SecretKey)
 
 	//err = sv.sendMessage(listenConn, &msg.P2pMessage{
 	//	Text:    "visitor222",
