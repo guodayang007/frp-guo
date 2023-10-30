@@ -203,22 +203,22 @@ func (sv *XTCPVisitor) handleConn(userConn net.Conn) {
 	}
 
 	xl.Info("[visitor] handleConn tunnelConn", sv.cfg.SecretKey)
-	message, err := nathole.EncodeMessage(msg.P2pMessage{
-		Text:    "XTCPVisitor",
-		Content: "handleConn",
-	}, []byte(sv.cfg.SecretKey))
-	if err != nil {
-		xl.Error("[visitor] handleConn encode message error: %v", err)
-	}
+	//message, err := nathole.EncodeMessage(msg.P2pMessage{
+	//	Text:    "XTCPVisitor",
+	//	Content: "handleConn",
+	//}, []byte(sv.cfg.SecretKey))
+	//if err != nil {
+	//	xl.Error("[visitor] handleConn encode message error: %v", err)
+	//}
+	//
+	//n, err := tunnelConn.Write(message)
+	//
+	//if err != nil {
+	//	xl.Error("[visitor] handleConn write message error: %v", err)
+	//
+	//}
 
-	n, err := tunnelConn.Write(message)
-
-	if err != nil {
-		xl.Error("[visitor] handleConn write message error: %v", err)
-
-	}
-
-	xl.Info("[visitor] handleConn tunnelConn", n)
+	xl.Info("[visitor] handleConn tunnelConn")
 	var muxConnRWCloser io.ReadWriteCloser = tunnelConn
 	if sv.cfg.Transport.UseEncryption {
 		muxConnRWCloser, err = libio.WithEncryption(muxConnRWCloser, []byte(sv.cfg.SecretKey))
@@ -327,7 +327,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 		AssistedAddrs: prepareResult.AssistedAddrs,
 	}
 
-	xl.Trace("[visitor] nathole exchange info start")
+	xl.Warn("[visitor] nathole exchange info start transactionID [%s]", transactionID)
 	natHoleRespMsg, err := nathole.ExchangeInfo(sv.ctx, sv.helper.MsgTransporter(), transactionID, natHoleVisitorMsg, 5*time.Second)
 	if err != nil {
 		listenConn.Close()
@@ -365,6 +365,14 @@ func (sv *XTCPVisitor) makeNatHole() {
 		return
 	}
 	xl.Warn("[visitor] send message raddr = %v listenConn=%+v", raddr, listenConn)
+
+	msg := msg.P2pMessageVisitor{
+		Content: "visitor hello fang111",
+		Sid:     natHoleRespMsg.Sid,
+	}
+	if err := nathole.SendSidMsg(sv.ctx, listenConn, transactionID, raddr.String(), []byte(sv.cfg.SecretKey), natHoleRespMsg.DetectBehavior.TTL, msg); err != nil {
+		xl.Warn("[MakeHole] send sid message from %s to %s error: %v", listenConn.LocalAddr(), raddr, err)
+	}
 
 	//err = sv.sendMessage(listenConn, &msg.P2pMessage{
 	//	Text:    "visitor222",
@@ -434,7 +442,7 @@ func (sv *XTCPVisitor) listenForMessages(conn net.Conn) {
 
 	case *msg.P2pMessageVisitor:
 
-		xl.Info("[visitor client ] P2pMessageVisitor - [%s] ", m.Content)
+		xl.Info("[visitor client ] P2pMessageVisitor - [%s] -[%+v]", conn.RemoteAddr(), m)
 	default:
 		log.Warn("[visitor] Error message type for the new connection [%s]", conn.RemoteAddr().String())
 		conn.Close()

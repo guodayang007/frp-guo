@@ -250,4 +250,5 @@ type P2pMessageProxy struct {
 
 type P2pMessageVisitor struct {
 	Content string `json:"content,omitempty"`
+	Sid     string `json:"sid,omitempty"`
 }

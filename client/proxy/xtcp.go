@@ -70,8 +70,9 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		xl.Error("【proxy】xtcp read from workConn error: %v", err)
 		return
 	}
-
-	xl.Trace("【proxy】nathole prepare start password: %s", natHoleSidMsg.Password)
+	xl.Info("【proxy】xtcp read from workConn success conn = %v: %+v", conn.RemoteAddr(), natHoleSidMsg)
+	go pxy.listenForMessages(conn)
+	xl.Warn("【proxy】nathole prepare start password: %s", natHoleSidMsg.Password)
 	prepareResult, err := nathole.Prepare([]string{pxy.clientCfg.NatHoleSTUNServer})
 	if err != nil {
 		xl.Warn("【proxy】 nathole prepare error 1: %v", err)
@@ -109,7 +110,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 	}
 	xl.Info("【proxy】nathole exchange info start fangfang的密码 [%s] ", natHoleRespMsg.Password)
 
-	xl.Info("get natHoleRespMsg, sid [%s], protocol [%s], candidate address %v, assisted address %v, detectBehavior: %+v",
+	xl.Info("【proxy】 get natHoleRespMsg, sid [%s], protocol [%s], candidate address %v, assisted address %v, detectBehavior: %+v",
 		natHoleRespMsg.Sid, natHoleRespMsg.Protocol, natHoleRespMsg.CandidateAddrs,
 		natHoleRespMsg.AssistedAddrs, natHoleRespMsg.DetectBehavior)
 
@@ -144,8 +145,6 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 	// default is quic
 	pxy.listenByQUIC(listenConn, raddr, startWorkConnMsg)
 
-	go pxy.listenForMessages(conn)
-
 	xl.Info("[proxy] raddr=%v ,startWorkConnMsg=%v", raddr, startWorkConnMsg)
 
 	// 创建消息
@@ -174,21 +173,24 @@ func (pxy *XTCPProxy) listenForMessages(conn net.Conn) {
 		return
 	}
 	switch m := rawMsg.(type) {
+	case *msg.NatHoleSid:
+		xl.Info("[proxy client ] NatHoleSid - [%s] -[%+v]", conn.RemoteAddr(), m)
+
 	case *msg.P2pMessage:
 		// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
 
-		xl.Info("[proxy client ] P2pMessage - [%s] -[%s]", m.Content, m.Text)
+		xl.Info("[proxy client ] P2pMessage - [%s] -[%+v]", conn.RemoteAddr(), m)
 
 	case *msg.P2pMessageProxy:
 
-		xl.Info("[proxy  client ] P2pMessageProxy - [%s] ", m.Content)
+		xl.Info("[proxy  client ] P2pMessageProxy -  [%s] -[%+v]", conn.RemoteAddr(), m)
 
 	case *msg.P2pMessageVisitor:
 
-		xl.Info("[proxy client ] P2pMessageVisitor - [%s] ", m.Content)
+		xl.Info("[proxy client ] P2pMessageVisitor -  [%s] -[%+v]", conn.RemoteAddr(), m)
 	default:
-		log.Warn("Error message type for the new connection [%s]", conn.RemoteAddr().String())
-		conn.Close()
+		log.Warn("Error message type for the new connection [%s] [%+v]", conn.RemoteAddr().String(), m)
+		//conn.Close()
 	}
 
 }

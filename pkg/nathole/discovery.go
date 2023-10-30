@@ -103,7 +103,7 @@ func (c *discoverConn) readLoop() {
 			return
 		}
 		buf = buf[:n]
-		fmt.Println("readLoop:", buf, addr, string(buf))
+		fmt.Println("readLoop:", addr, string(buf))
 		c.messageChan <- &Message{
 			Body: buf,
 			Addr: addr.String(),
@@ -131,11 +131,11 @@ func (c *discoverConn) doSTUNRequest(addr string) (*stunResponse, error) {
 	var m stun.Message
 	select {
 	case msg := <-c.messageChan:
-		fmt.Println("doSTUNRequest messageChan:", string(msg.Body), msg.Addr)
 		m.Raw = msg.Body
 		if err := m.Decode(); err != nil {
 			return nil, err
 		}
+		fmt.Printf("doSTUNRequest messageChan: %+v\n", msg)
 	case <-time.After(responseTimeout):
 		return nil, fmt.Errorf("wait response from stun server timeout")
 	}

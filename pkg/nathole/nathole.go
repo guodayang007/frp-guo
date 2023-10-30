@@ -183,6 +183,7 @@ func MakeHole(ctx context.Context, listenConn *net.UDPConn, m *msg.NatHoleResp, 
 	xl := xlog.FromContextSafe(ctx)
 	transactionID := NewTransactionID()
 	sendToRangePortsFunc := func(conn *net.UDPConn, addr string) error {
+		xl.Warn("[MakeHole] send to range ports  m.Sid=%v addr=%v", m.Sid, addr)
 		return sendSidMessage(ctx, conn, m.Sid, transactionID, addr, key, m.DetectBehavior.TTL)
 	}
 
@@ -216,8 +217,9 @@ func MakeHole(ctx context.Context, listenConn *net.UDPConn, m *msg.NatHoleResp, 
 	detectAddrs = lo.Uniq(detectAddrs)
 	for _, detectAddr := range detectAddrs {
 		for _, conn := range listenConns {
+
 			if err := sendSidMessage(ctx, conn, m.Sid, transactionID, detectAddr, key, m.DetectBehavior.TTL); err != nil {
-				xl.Trace("send sid message from %s to %s error: %v", conn.LocalAddr(), detectAddr, err)
+				xl.Warn("[MakeHole] send sid message from %s to %s error: %v", conn.LocalAddr(), detectAddr, err)
 			}
 		}
 	}
@@ -296,9 +298,8 @@ func waitDetectMessage(
 			xl.Warn("decode sid message error: %v", err)
 			continue
 		}
-		xl.Info("waitDetectMessage buf = %v addr=%v n=%v", string(buf[:n]), raddr, n)
 		pool.PutBuf(buf)
-		xl.Info("waitDetectMessage get sid message: %+v", m)
+		xl.Info("waitDetectMessage get sid message: %+v addr=%v n=%v", m, raddr, n)
 		if m.Sid != sid {
 			xl.Warn("get sid message with wrong sid: %s, expect: %s", m.Sid, sid)
 			continue
@@ -346,6 +347,54 @@ func sendSidMessage(
 		Nonce:         strings.Repeat("0", rand.Intn(20)),
 		Password:      "sendSidMessage 123456",
 	}
+	buf, err := EncodeMessage(m, key)
+	if err != nil {
+		return err
+	}
+	if ttl > 0 {
+		uConn := ipv4.NewConn(conn)
+		original, err := uConn.TTL()
+		if err != nil {
+			xl.Trace("get ttl error %v", err)
+			return err
+		}
+		xl.Trace("original ttl %d", original)
+
+		err = uConn.SetTTL(ttl)
+		if err != nil {
+			xl.Trace("set ttl error %v", err)
+		} else {
+			defer func() {
+				_ = uConn.SetTTL(original)
+			}()
+		}
+	}
+
+	if _, err := conn.WriteToUDP(buf, raddr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func SendSidMsg(
+	ctx context.Context, conn *net.UDPConn,
+	transactionID string, addr string, key []byte, ttl int,
+	m msg.Message,
+) error {
+	xl := xlog.FromContextSafe(ctx)
+	ttlStr := ""
+	if ttl > 0 {
+		ttlStr = fmt.Sprintf(" with ttl %d", ttl)
+	}
+	xl.Trace("send sid message from %s to %s%s", conn.LocalAddr(), addr, ttlStr)
+	raddr, err := net.ResolveUDPAddr("udp4", addr)
+	if err != nil {
+		return err
+	}
+	if transactionID == "" {
+		transactionID = NewTransactionID()
+	}
+
 	buf, err := EncodeMessage(m, key)
 	if err != nil {
 		return err

@@ -268,7 +268,7 @@ func (c *Controller) HandleClient(m *msg.NatHoleClient, transporter transport.Me
 func (c *Controller) HandleReport(m *msg.NatHoleReport) {
 	c.mu.RLock()
 	session, ok := c.sessions[m.Sid]
-	log.Info("c.sessions %v", c.sessions)
+	log.Info("c.sessions sid=%v %+v", m.Sid, session)
 	c.mu.RUnlock()
 	if !ok {
 		log.Trace("sid [%s] report make hole success: %v message:%s, but session not found", m.Sid, m.Success, m.Content)
@@ -359,10 +359,10 @@ func (c *Controller) analysis(session *Session) (*msg.NatHoleResp, *msg.NatHoleR
 		},
 	}
 
-	log.Debug("sid [%s] visitor nat: %+v, candidateAddrs: %v; client nat: %+v, candidateAddrs: %v, protocol: %s",
+	log.Error("sid [%s] visitor nat: %+v, candidateAddrs: %v; client nat: %+v, candidateAddrs: %v, protocol: %s",
 		session.sid, *vNatFeature, vm.MappedAddrs, *cNatFeature, cm.MappedAddrs, protocol)
-	log.Debug("sid [%s] visitor detect behavior: %+v", session.sid, vResp.DetectBehavior)
-	log.Debug("sid [%s] client detect behavior: %+v", session.sid, cResp.DetectBehavior)
+	log.Error("sid [%s] visitor detect behavior: %+v", session.sid, vResp.DetectBehavior)
+	log.Error("sid [%s] client detect behavior: %+v", session.sid, cResp.DetectBehavior)
 	return vResp, cResp, nil
 }
 
