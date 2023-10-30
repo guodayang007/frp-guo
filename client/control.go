@@ -304,7 +304,7 @@ func (ctl *Control) msgHandler() {
 		select {
 		case <-hbSendCh:
 			// send heartbeat to server
-			xl.Error("send heartbeat to server")
+			xl.Info("send heartbeat to server")
 			pingMsg := &msg.Ping{}
 			if err := ctl.authSetter.SetPing(pingMsg); err != nil {
 				xl.Warn("error during ping authentication: %v", err)

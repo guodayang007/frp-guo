@@ -119,6 +119,7 @@ func (svr *Service) Run(ctx context.Context) error {
 		net.DefaultResolver = &net.Resolver{
 			PreferGo: true,
 			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				xl.Info("Dialing DNS server %s", dnsAddr)
 				return net.Dial("udp", dnsAddr)
 			},
 		}

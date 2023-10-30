@@ -70,6 +70,7 @@ func (auth *OidcAuthProvider) SetLogin(loginMsg *msg.Login) (err error) {
 }
 
 func (auth *OidcAuthProvider) SetPing(pingMsg *msg.Ping) (err error) {
+	fmt.Println("OidcAuthProvider SetPing")
 	if !lo.Contains(auth.additionalAuthScopes, v1.AuthScopeHeartBeats) {
 		return nil
 	}

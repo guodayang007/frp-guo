@@ -10,8 +10,8 @@ bindAddr = "127.0.0.1"
 bindPort = 6000
 # when automatic tunnel persistence is required, set it to true
 # 当需要自动保持隧道打开时，设置为 true
-keep_tunnel_open = true
+keep_tunnel_open = false
 # 每小时尝试打开隧道的次数
-max_retries_an_hour = 8
+# max_retries_an_hour = 8
 # 重试打开隧道的最小间隔时间，单位: 秒
-min_retry_interval = 90
+# min_retry_interval = 90

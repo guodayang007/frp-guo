@@ -15,7 +15,13 @@
 package msg
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/fatedier/frp/pkg/util/log"
+	"github.com/fatedier/frp/pkg/util/xlog"
 	"io"
+	"net"
 
 	jsonMsg "github.com/fatedier/golib/msg/json"
 )
@@ -45,4 +51,105 @@ func WriteMsg(c io.Writer, msg interface{}) (err error) {
 
 func Pack(msg interface{}) (data []byte, err error) {
 	return msgCtl.Pack(msg)
+}
+func SendMessage(conn net.Conn, message Message) error {
+
+	return WriteMsg(conn, message)
+}
+
+func SendUdpMessage(conn *net.UDPConn, raddr *net.UDPAddr, message Message) (int, error) {
+	//err := msg.WriteMsg(conn, &message)
+	marshal, err := json.Marshal(&message)
+	if err != nil {
+		return 0, err
+	}
+	n, err := conn.WriteToUDP(marshal, raddr)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return n, nil
+}
+
+func ListenForUdpMessages(ctx context.Context, conn *net.UDPConn) {
+	xl := xlog.FromContextSafe(ctx)
+	for {
+
+		var (
+			rawMsg Message
+			err    error
+		)
+		var data [1024]byte
+		n, addr, err := conn.ReadFromUDP(data[:]) // 接收数据
+		if err != nil {
+			fmt.Println("read udp failed, err:", err)
+			xl.Error("[ListenForUdpMessages] read udp failed, err:", err)
+		}
+		fmt.Printf("[ListenForUdpMessages] data:%v addr:%v count:%v\n", string(data[:n]), addr, n)
+
+		if rawMsg, err = ReadMsg(conn); err != nil {
+			log.Trace("Failed to read message: %v", err)
+			conn.Close()
+			return
+		}
+		switch m := rawMsg.(type) {
+		case *NatHoleSid:
+			xl.Info("[proxy client ] NatHoleSid - [%s] -[%+v]", conn.RemoteAddr(), m)
+
+		case *P2pMessage:
+			// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
+
+			xl.Info("[proxy client ] P2pMessage - [%s] -[%+v]", conn.RemoteAddr(), m)
+
+		case *P2pMessageProxy:
+
+			xl.Info("[proxy  client ] P2pMessageProxy -  [%s] -[%+v]", conn.RemoteAddr(), m)
+
+		case *P2pMessageVisitor:
+
+			xl.Info("[proxy client ] P2pMessageVisitor -  [%s] -[%+v]", conn.RemoteAddr(), m)
+		default:
+			log.Warn("Error message type for the new connection [%s] [%+v]", conn.RemoteAddr().String(), m)
+			//conn.Close()
+		}
+	}
+
+}
+
+func ListenForMessages(ctx context.Context, conn net.Conn) {
+	xl := xlog.FromContextSafe(ctx)
+
+	for {
+		var (
+			rawMsg Message
+			err    error
+		)
+		if rawMsg, err = ReadMsg(conn); err != nil {
+			log.Trace("Failed to read message: %v", err)
+			conn.Close()
+			return
+		}
+		switch m := rawMsg.(type) {
+		case *NatHoleSid:
+			xl.Info("[proxy client ] NatHoleSid - [%s] -[%+v]", conn.RemoteAddr(), m)
+
+		case *P2pMessage:
+			// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
+
+			xl.Info("[proxy client ] P2pMessage - [%s] -[%+v]", conn.RemoteAddr(), m)
+
+		case *P2pMessageProxy:
+
+			xl.Info("[proxy  client ] P2pMessageProxy -  [%s] -[%+v]", conn.RemoteAddr(), m)
+
+		case *P2pMessageVisitor:
+
+			xl.Info("[proxy client ] P2pMessageVisitor -  [%s] -[%+v]", conn.RemoteAddr(), m)
+		default:
+			log.Warn("Error message type for the new connection [%s] [%+v]", conn.RemoteAddr().String(), m)
+			//conn.Close()
+		}
+	}
+
 }

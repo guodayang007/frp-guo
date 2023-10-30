@@ -43,6 +43,7 @@ func (auth *TokenAuthSetterVerifier) SetLogin(loginMsg *msg.Login) error {
 }
 
 func (auth *TokenAuthSetterVerifier) SetPing(pingMsg *msg.Ping) error {
+	fmt.Println("TokenAuthSetterVerifier token SetPing start")
 	if !lo.Contains(auth.additionalAuthScopes, v1.AuthScopeHeartBeats) {
 		return nil
 	}

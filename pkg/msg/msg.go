@@ -201,6 +201,8 @@ type NatHoleClient struct {
 	Sid           string   `json:"sid,omitempty"`
 	MappedAddrs   []string `json:"mapped_addrs,omitempty"`
 	AssistedAddrs []string `json:"assisted_addrs,omitempty"`
+
+	Content string `json:"content,omitempty"`
 }
 
 type PortsRange struct {

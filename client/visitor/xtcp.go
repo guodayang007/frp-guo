@@ -16,10 +16,8 @@ package visitor
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fatedier/frp/pkg/util/log"
 	"io"
 	"net"
 	"strconv"
@@ -59,6 +57,7 @@ func (sv *XTCPVisitor) Run() (err error) {
 	if sv.cfg.Protocol == "kcp" {
 		sv.session = NewKCPTunnelSession()
 	} else {
+		fmt.Println("[visitor] sv.cfg.Protocol  Run", sv.clientCfg)
 		sv.session = NewQUICTunnelSession(sv.clientCfg)
 	}
 
@@ -312,6 +311,9 @@ func (sv *XTCPVisitor) makeNatHole() {
 
 	listenConn := prepareResult.ListenConn
 
+	go msg.ListenForUdpMessages(sv.ctx, listenConn)
+	xl.Info("[visitor] nathole listen for udp messages success")
+
 	// send NatHoleVisitor to server
 	now := time.Now().Unix()
 	transactionID := nathole.NewTransactionID()
@@ -352,7 +354,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 		return
 	}
 
-	err = sv.sendUdpMessage(listenConn, raddr, &msg.P2pMessageProxy{
+	n, err := msg.SendUdpMessage(listenConn, raddr, &msg.P2pMessageProxy{
 		Content: "visitor hello fang111",
 		Sid:     natHoleRespMsg.Sid,
 	})
@@ -368,91 +370,15 @@ func (sv *XTCPVisitor) makeNatHole() {
 	if err := nathole.SendSidMsg(sv.ctx, listenConn, transactionID, raddr, []byte(sv.cfg.SecretKey), natHoleRespMsg.DetectBehavior.TTL, &pMsg); err != nil {
 		xl.Error("[MakeHole SendSidMsg] 2222 send sid message from %s to %s error: %v", listenConn.LocalAddr(), raddr, err)
 	}
-
-	err = msg.WriteMsg(listenConn, &msg.P2pMessageProxy{
+	// 发送消息
+	if err := msg.SendMessage(listenConn, &msg.P2pMessageProxy{
 		Content: "visitor hello fang111",
 		Sid:     natHoleRespMsg.Sid,
-	})
-	if err != nil {
-		xl.Error("[visitor] WriteMsg send message  error: %v", err)
-		return
+	}); err != nil {
+		xl.Error("【proxy】xtcp send message error: %v", err)
 	}
 
-	xl.Warn("[visitor] send message raddr = %v listenConn=%+v sv.cfg.SecretKey=%v", raddr, listenConn, sv.cfg.SecretKey)
-
-	//err = sv.sendMessage(listenConn, &msg.P2pMessage{
-	//	Text:    "visitor222",
-	//	Content: "hello fang222",
-	//})
-	//
-	//if err != nil {
-	//	xl.Error("[visitor] send message sendUdpMessage error: %v", err)
-	//	return
-	//}
-
-}
-
-func (sv *XTCPVisitor) sendUdpMessage(conn *net.UDPConn, raddr *net.UDPAddr, message *msg.P2pMessageProxy) error {
-	xl := xlog.FromContextSafe(sv.ctx)
-	//err := msg.WriteMsg(conn, &message)
-	marshal, err := json.Marshal(&message)
-	if err != nil {
-		xl.Error("[visitor] sendUdpMessage EncodeMessage Failed to send message: %v", err)
-		return err
-	}
-	n, err := conn.WriteToUDP(marshal, raddr)
-
-	if err != nil {
-		xl.Error("[visitor] sendUdpMessage Failed to send message: %v", err)
-		return err
-	}
-
-	xl.Info("[visitor] sendUdpMessage %v", n)
-	return err
-}
-func (sv *XTCPVisitor) sendMessage(conn net.Conn, message *msg.P2pMessage) error {
-	xl := xlog.FromContextSafe(sv.ctx)
-	//err := msg.WriteMsg(conn, &message)
-	content, err := json.Marshal(message)
-	if err != nil {
-		return err
-	}
-	n, err := conn.Write(content)
-	if err != nil {
-		xl.Error("[visitor] sendMessage Failed to send message: %v", err)
-	}
-	xl.Info("[visitor] sendMessage %v", n)
-	return err
-}
-func (sv *XTCPVisitor) listenForMessages(conn net.Conn) {
-	xl := xlog.FromContextSafe(sv.ctx)
-
-	var (
-		rawMsg msg.Message
-		err    error
-	)
-	if rawMsg, err = msg.ReadMsg(conn); err != nil {
-		log.Trace("Failed to read message: %v", err)
-		conn.Close()
-		return
-	}
-	switch m := rawMsg.(type) {
-	case *msg.P2pMessage:
-		// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
-
-		xl.Info("[visitor client ] P2pMessage - [%s] -[%s]", m.Content, m.Text)
-
-	case *msg.P2pMessageProxy:
-
-		xl.Info("[visitor  client ] P2pMessageProxy - [%s] ", m.Content)
-
-	case *msg.P2pMessageVisitor:
-
-		xl.Info("[visitor client ] P2pMessageVisitor - [%s] -[%+v]", conn.RemoteAddr(), m)
-	default:
-		log.Warn("[visitor] Error message type for the new connection [%s]", conn.RemoteAddr().String())
-		conn.Close()
-	}
+	xl.Warn("[visitor] send message raddr = %v listenConn=%+v sv.cfg.SecretKey=%v n=%v", raddr, listenConn, sv.cfg.SecretKey, n)
 
 }
 

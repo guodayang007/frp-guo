@@ -15,8 +15,6 @@
 package proxy
 
 import (
-	"github.com/fatedier/frp/pkg/util/log"
-	"github.com/fatedier/frp/pkg/util/xlog"
 	"io"
 	"net"
 	"reflect"
@@ -52,13 +50,6 @@ func NewXTCPProxy(baseProxy *BaseProxy, cfg v1.ProxyConfigurer) Proxy {
 		cfg:       unwrapped,
 	}
 }
-func (pxy *XTCPProxy) sendMessage(conn net.Conn, message *msg.P2pMessage) error {
-	err := msg.WriteMsg(conn, message)
-	if err != nil {
-		pxy.xl.Error("[proxy] Failed to send message: %v", err)
-	}
-	return err
-}
 
 // InWorkConn 处理入站连接
 func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkConn) {
@@ -71,7 +62,7 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		return
 	}
 	xl.Info("【proxy】xtcp read from workConn success conn = %v: %+v", conn.RemoteAddr(), natHoleSidMsg)
-	go pxy.listenForMessages(conn)
+	go msg.ListenForMessages(pxy.ctx, conn)
 	xl.Warn("【proxy】nathole prepare start password: %s", natHoleSidMsg.Password)
 	prepareResult, err := nathole.Prepare([]string{pxy.clientCfg.NatHoleSTUNServer})
 	if err != nil {
@@ -97,9 +88,10 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		Sid:           natHoleSidMsg.Sid,
 		MappedAddrs:   prepareResult.Addrs,
 		AssistedAddrs: prepareResult.AssistedAddrs,
+		Content:       "proxy client fang",
 	}
 
-	xl.Trace("【proxy】nathole exchange info start")
+	xl.Warn("【proxy】nathole exchange info start")
 	natHoleRespMsg, err := nathole.ExchangeInfo(pxy.ctx, pxy.msgTransporter, transactionID, natHoleClientMsg, 5*time.Second)
 	if err != nil {
 		xl.Warn("【proxy】nathole exchange info error: %v", err)
@@ -127,6 +119,8 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		return
 	}
 	listenConn = newListenConn
+	go msg.ListenForUdpMessages(pxy.ctx, newListenConn)
+
 	xl.Info("【proxy】establishing nat hole connection successful------, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
 	xl.Warn("【proxy】 make hole  2:")
 	err = pxy.msgTransporter.Send(&msg.NatHoleReport{
@@ -153,46 +147,11 @@ func (pxy *XTCPProxy) InWorkConn(conn net.Conn, startWorkConnMsg *msg.StartWorkC
 		Content: "client proxy fang",
 	}
 	// 发送消息
-	if err := pxy.sendMessage(conn, message); err != nil {
+	if err := msg.SendMessage(conn, message); err != nil {
 		xl.Error("【proxy】xtcp send message error: %v", err)
-		return
 	}
 
 	xl.Info("【proxy】xtcp send message success")
-}
-func (pxy *XTCPProxy) listenForMessages(conn net.Conn) {
-	xl := xlog.FromContextSafe(pxy.ctx)
-
-	var (
-		rawMsg msg.Message
-		err    error
-	)
-	if rawMsg, err = msg.ReadMsg(conn); err != nil {
-		log.Trace("Failed to read message: %v", err)
-		conn.Close()
-		return
-	}
-	switch m := rawMsg.(type) {
-	case *msg.NatHoleSid:
-		xl.Info("[proxy client ] NatHoleSid - [%s] -[%+v]", conn.RemoteAddr(), m)
-
-	case *msg.P2pMessage:
-		// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
-
-		xl.Info("[proxy client ] P2pMessage - [%s] -[%+v]", conn.RemoteAddr(), m)
-
-	case *msg.P2pMessageProxy:
-
-		xl.Info("[proxy  client ] P2pMessageProxy -  [%s] -[%+v]", conn.RemoteAddr(), m)
-
-	case *msg.P2pMessageVisitor:
-
-		xl.Info("[proxy client ] P2pMessageVisitor -  [%s] -[%+v]", conn.RemoteAddr(), m)
-	default:
-		log.Warn("Error message type for the new connection [%s] [%+v]", conn.RemoteAddr().String(), m)
-		//conn.Close()
-	}
-
 }
 func (pxy *XTCPProxy) listenByKCP(listenConn *net.UDPConn, raddr *net.UDPAddr, startWorkConnMsg *msg.StartWorkConn) {
 	xl := pxy.xl
