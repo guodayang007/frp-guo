@@ -280,7 +280,7 @@ func (ctl *Control) GetWorkConn() (workConn net.Conn, err error) {
 			err = pkgerr.ErrCtlClosed
 			return
 		}
-		xl.Debug("get work connection from pool")
+		xl.Error("get work connection from pool")
 	default:
 		// no work connections available in the poll, send message to frpc to get more
 		if err = errors.PanicToError(func() {
@@ -335,6 +335,7 @@ func (ctl *Control) writer() {
 			xl.Info("control writer is closing")
 			return
 		}
+		xl.Info("[server control] ctl.conn writer =%v", ctl.conn.RemoteAddr(), m)
 
 		if err := msg.WriteMsg(encWriter, m); err != nil {
 			xl.Warn("write message to control connection error: %v", err)
@@ -363,10 +364,11 @@ func (ctl *Control) reader() {
 				xl.Debug("control connection closed")
 				return
 			}
-			xl.Warn("read error: %v", err)
+			xl.Warn("[server control] read error: %v", err)
 			ctl.conn.Close()
 			return
 		}
+		xl.Info("[server control] ctl.conn =%v  reader =%+v", ctl.conn.RemoteAddr(), m)
 
 		ctl.readCh <- m
 	}
@@ -474,7 +476,7 @@ func (ctl *Control) manager() {
 
 			switch m := rawMsg.(type) {
 			case *msg.NewProxy:
-				xl.Info("[client manager] NewProxy 111 =%v", m)
+				xl.Info("[client manager] NewProxy 111 runId=[%v] =%+v", ctl.loginMsg.RunID, m)
 				content := &plugin.NewProxyContent{
 					User: plugin.UserInfo{
 						User:  ctl.loginMsg.User,
@@ -488,6 +490,7 @@ func (ctl *Control) manager() {
 				if err == nil {
 					m = &retContent.NewProxy
 					remoteAddr, err = ctl.RegisterProxy(m)
+					xl.Info("[client manager] RegisterProxy NewProxy 222 =%+v", m)
 				}
 
 				// register proxy in this control
@@ -505,23 +508,23 @@ func (ctl *Control) manager() {
 				}
 				ctl.sendCh <- resp
 			case *msg.NatHoleVisitor:
-				xl.Info("[client manager]  NatHoleVisitor 111 =%v", m)
+				xl.Info("[server manager]  NatHoleVisitor 111 =%v", m)
 				go ctl.HandleNatHoleVisitor(m)
 			case *msg.NatHoleClient:
-				xl.Info("[client manager]  NatHoleClient 111 =%v", m)
+				xl.Info("[server manager]  NatHoleClient 111 =%v", m)
 				go ctl.HandleNatHoleClient(m)
 			case *msg.NatHoleReport:
-				xl.Info("[client manager]  NatHoleReport 111 =%v", m)
+				xl.Info("[server manager]  NatHoleReport 111 =%v", m)
 				go ctl.HandleNatHoleReport(m)
 			case *msg.CloseProxy:
-				xl.Info("[client manager]  CloseProxy 111 =%v", m)
+				xl.Info("[server manager]  CloseProxy 111 =%v", m)
 				_ = ctl.CloseProxy(m)
 				xl.Info("close proxy [%s] success", m.ProxyName)
 
 			case *msg.P2pMessage:
 				// 处理登录逻辑，你需要添加XTCP Proxy的登录逻辑
 
-				xl.Info("[client manager] P2pMessage - [%s] -[%s]", m.Content, m.Text)
+				xl.Info("[server manager] P2pMessage - [%s] -[%s]", m.Content, m.Text)
 
 				ctl.sendCh <- msg.P2pMessageVisitor{
 					Content: "servet send to client",
@@ -529,14 +532,14 @@ func (ctl *Control) manager() {
 
 			case *msg.P2pMessageProxy:
 
-				xl.Info("[client manager] P2pMessageProxy - [%s] ", m.Content)
+				xl.Info("[server manager] P2pMessageProxy - [%s] ", m.Content)
 
 			case *msg.P2pMessageVisitor:
 
-				xl.Info("[client manager] P2pMessageVisitor - [%s] ", m.Content)
+				xl.Info("[server manager] P2pMessageVisitor - [%s] ", m.Content)
 
 			case *msg.Ping:
-				xl.Info("[client manager]  Ping 111 =%v", m)
+				xl.Info("[server manager]  Ping 111 =%v", m)
 				content := &plugin.PingContent{
 					User: plugin.UserInfo{
 						User:  ctl.loginMsg.User,

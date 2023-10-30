@@ -347,7 +347,7 @@ func (sv *XTCPVisitor) makeNatHole() {
 		return
 	}
 	listenConn = newListenConn
-	xl.Info("[visitor] establishing nat hole connection successful-----------, sid [%s], remoteAddr [%s]", natHoleRespMsg.Sid, raddr)
+	xl.Info("[visitor] establishing nat hole connection successful-----------, sid [%s], remoteAddr [%s] runId=[%s]", natHoleRespMsg.Sid, raddr, sv.helper.RunID())
 
 	if err := sv.session.Init(listenConn, raddr); err != nil {
 		listenConn.Close()
@@ -364,17 +364,17 @@ func (sv *XTCPVisitor) makeNatHole() {
 		xl.Error("[visitor] send message sendUdpMessage error: %v", err)
 		return
 	}
-	xl.Warn("[visitor] send message ")
+	xl.Warn("[visitor] send message raddr = %v listenConn=%+v", raddr, listenConn)
 
-	err = sv.sendMessage(listenConn, &msg.P2pMessage{
-		Text:    "visitor222",
-		Content: "hello fang222",
-	})
-
-	if err != nil {
-		xl.Error("[visitor] send message sendUdpMessage error: %v", err)
-		return
-	}
+	//err = sv.sendMessage(listenConn, &msg.P2pMessage{
+	//	Text:    "visitor222",
+	//	Content: "hello fang222",
+	//})
+	//
+	//if err != nil {
+	//	xl.Error("[visitor] send message sendUdpMessage error: %v", err)
+	//	return
+	//}
 
 }
 

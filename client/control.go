@@ -238,6 +238,8 @@ func (ctl *Control) reader() {
 			ctl.conn.Close()
 			return
 		}
+
+		xl.Info("[client control]ctl.conn =%v  reader =%+v", ctl.conn.RemoteAddr(), m)
 		ctl.readCh <- m
 	}
 }
@@ -258,7 +260,7 @@ func (ctl *Control) writer() {
 			xl.Info("control writer is closing")
 			return
 		}
-		xl.Info("[client control.go] writer =%v", m)
+		xl.Info("[client control] ctl.conn writer =%v", ctl.conn.RemoteAddr(), m)
 
 		if err := msg.WriteMsg(encWriter, m); err != nil {
 			xl.Warn("[client control.go] write message to control connection error: %v", err)
@@ -302,7 +304,7 @@ func (ctl *Control) msgHandler() {
 		select {
 		case <-hbSendCh:
 			// send heartbeat to server
-			xl.Debug("send heartbeat to server")
+			xl.Error("send heartbeat to server")
 			pingMsg := &msg.Ping{}
 			if err := ctl.authSetter.SetPing(pingMsg); err != nil {
 				xl.Warn("error during ping authentication: %v", err)
@@ -323,13 +325,13 @@ func (ctl *Control) msgHandler() {
 
 			switch m := rawMsg.(type) {
 			case *msg.ReqWorkConn:
-				xl.Info("[client control]  ReqWorkConn 111 =%s", m)
+				xl.Info("[client control]  ReqWorkConn 111 =%+v", m)
 				go ctl.HandleReqWorkConn(m)
 			case *msg.NewProxyResp:
-				xl.Info("[client control]  NewProxyResp 111 =%s", m)
+				xl.Info("[client control]  NewProxyResp 111 =%+v", m)
 				ctl.HandleNewProxyResp(m)
 			case *msg.NatHoleResp:
-				xl.Info("[client control]  NatHoleResp 111 =%s", m)
+				xl.Info("[client control]  NatHoleResp 111 =%+v", m)
 				ctl.HandleNatHoleResp(m)
 
 			case *msg.P2pMessage:
